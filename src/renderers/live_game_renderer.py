@@ -96,97 +96,96 @@ class LiveGameRenderer(BaseRenderer):
             self.canvas.draw_text(55, 20, f"P: {pitcher_text}", *Colors.YELLOW)
 
     def _render_live_game(self, game: LiveGameData):
-        """Render live game with full details and animations."""
-        # Live indicator (pulsing)
-        scale = self.live_pulse.get_scale()
-        intensity = int(200 * scale)
-        self.canvas.draw_circle(3, 3, 2, 0, intensity, 0, filled=True)
-        self.canvas.draw_text(8, 10, "LIVE", 0, 200, 0)
+        """Render live game with full details - matches original mlb-led-scoreboard style."""
 
-        # Teams and scores (adjusted for 7x13 BDF font)
-        y_away = 22
-        y_home = 35
+        # TOP SECTION: Team name bars with scores (like original)
+        # Away team bar (top) - blue background
+        self.canvas.draw_rect(0, 0, 128, 13, 0, 50, 150, filled=True)
+        self.canvas.draw_text(2, 10, game.away_team.abbreviation, *Colors.WHITE)
 
-        # Away team
-        self.canvas.draw_text(5, y_away, game.away_team.abbreviation, *Colors.WHITE)
-        score_x = 35
-        away_score = str(game.away_team.score)
+        # Away score (right side of blue bar)
+        away_score = str(game.away_team.score).zfill(2)  # Pad with zero like "04"
+        score_x = 128 - (len(away_score) * 7 + 5)
 
-        # Apply score animation if active
         away_color = Colors.WHITE
         if 'away' in self.score_animations:
             anim = self.score_animations['away']
             if anim.get_flash_state():
-                intensity = anim.get_color_intensity()
-                away_color = (
-                    int(255 * intensity),
-                    int(255 * intensity),
-                    0
-                )
+                away_color = Colors.YELLOW
             if anim.is_complete():
                 del self.score_animations['away']
 
-        self.canvas.draw_text(score_x, y_away, away_score, *away_color)
+        self.canvas.draw_text(score_x, 10, away_score, *away_color)
 
-        # Home team
-        self.canvas.draw_text(5, y_home, game.home_team.abbreviation, *Colors.WHITE)
-        home_score = str(game.home_team.score)
+        # Home team bar - magenta/purple background
+        self.canvas.draw_rect(0, 14, 128, 13, 150, 0, 100, filled=True)
+        self.canvas.draw_text(2, 24, game.home_team.abbreviation, *Colors.WHITE)
+
+        # Home score
+        home_score = str(game.home_team.score).zfill(2)
 
         home_color = Colors.WHITE
         if 'home' in self.score_animations:
             anim = self.score_animations['home']
             if anim.get_flash_state():
-                intensity = anim.get_color_intensity()
-                home_color = (
-                    int(255 * intensity),
-                    int(255 * intensity),
-                    0
-                )
+                home_color = Colors.YELLOW
             if anim.is_complete():
                 del self.score_animations['home']
 
-        self.canvas.draw_text(score_x, y_home, home_score, *home_color)
+        self.canvas.draw_text(score_x, 24, home_score, *home_color)
 
-        # Inning
-        inning_text = f"{game.inning.half[0].upper()}{game.inning.num}"
-        self.canvas.draw_text(55, 22, inning_text, *Colors.CYAN)
-
-        # Baseball diamond with runners (smaller, right side)
-        if self.config.modes.live_game.show_runners:
-            runners = (
-                game.runners.first is not None,
-                game.runners.second is not None,
-                game.runners.third is not None
-            )
-            draw_baseball_diamond(self.canvas, 100, 15, 12, runners, Colors.WHITE)
-
-        # Count (balls, strikes, outs) - below teams
-        if self.config.modes.live_game.show_pitch_count:
-            draw_count(self.canvas, 55, 32, game.count.balls, game.count.strikes)
-
-        # Outs
-        if self.config.modes.live_game.show_outs:
-            draw_outs(self.canvas, 80, 32, game.count.outs)
-
-        # Current batter/pitcher info
-        if game.current_batter:
-            batter_name = game.current_batter.name.split()[-1][:8]  # Last name
-            self.canvas.draw_text(5, 48, f"AB:{batter_name[:7]}", *Colors.YELLOW)
-            if game.current_batter.avg:
-                self.canvas.draw_text(5, 60, game.current_batter.avg, *Colors.WHITE)
-
+        # MIDDLE SECTION: Pitcher info and bases
+        # Pitcher label
         if game.current_pitcher:
-            pitcher_name = game.current_pitcher.name.split()[-1][:8]
-            self.canvas.draw_text(60, 48, f"P:{pitcher_name[:7]}", *Colors.ORANGE)
-            if game.current_pitcher.era:
-                self.canvas.draw_text(60, 60, game.current_pitcher.era, *Colors.WHITE)
+            self.canvas.draw_text(2, 38, "Pitcher:", *Colors.WHITE)
 
-        # Last play description (bottom, shorter)
-        if game.last_play:
-            play_text = game.last_play.description[:15]
-            play_color = Colors.RED if game.last_play.is_scoring_play else Colors.CYAN
-            # Skip last play for now - takes too much space
-            # self.canvas.draw_text(5, 64, play_text, *play_color)
+            # Triangle indicator (batting team indicator)
+            if game.inning.half == "top":
+                # Draw triangle pointing at away team
+                for i in range(3):
+                    self.canvas.draw_line(50 + i, 32 - i, 50 + i, 32 + i, *Colors.WHITE)
+            else:
+                # Draw triangle pointing at home team
+                for i in range(3):
+                    self.canvas.draw_line(50 + i, 35 - i, 50 + i, 35 + i, *Colors.WHITE)
+
+        # Baseball diamond - individual base indicators (right side)
+        if self.config.modes.live_game.show_runners:
+            base_x = 90
+            base_y = 30
+
+            # Draw diamond outlines and fill if runner present
+            # First base (bottom right)
+            color = Colors.WHITE if game.runners.first else Colors.FINAL_GRAY
+            self.canvas.draw_rect(base_x + 8, base_y + 8, 6, 6, *color, filled=game.runners.first is not None)
+
+            # Second base (top center)
+            color = Colors.WHITE if game.runners.second else Colors.FINAL_GRAY
+            self.canvas.draw_rect(base_x + 4, base_y, 6, 6, *color, filled=game.runners.second is not None)
+
+            # Third base (bottom left)
+            color = Colors.WHITE if game.runners.third else Colors.FINAL_GRAY
+            self.canvas.draw_rect(base_x, base_y + 8, 6, 6, *color, filled=game.runners.third is not None)
+
+        # BOTTOM SECTION: At bat info and count
+        # AB: [name] [count]
+        if game.current_batter:
+            batter_name = game.current_batter.name.split()[-1][:2]  # First 2 letters like "Ca"
+            self.canvas.draw_text(2, 50, "AB:", *Colors.WHITE)
+            self.canvas.draw_text(25, 50, batter_name, *Colors.WHITE)
+
+            # Count as "B-S" format
+            count_text = f"{game.count.balls}-{game.count.strikes}"
+            self.canvas.draw_text(60, 50, count_text, *Colors.WHITE)
+
+            # Outs as squares (right side)
+            if self.config.modes.live_game.show_outs:
+                out_x = 95
+                for i in range(3):
+                    if i < game.count.outs:
+                        self.canvas.draw_rect(out_x + (i * 10), 44, 6, 6, *Colors.WHITE, filled=True)
+                    else:
+                        self.canvas.draw_rect(out_x + (i * 10), 44, 6, 6, *Colors.WHITE, filled=False)
 
     def _render_final(self, game: LiveGameData):
         """Render final score."""
