@@ -76,7 +76,9 @@ class DataFetcher:
             # Use simulator if enabled
             if self.simulate:
                 self.current_games = self.simulator.get_games()
-                logger.debug(f"Simulated {len(self.current_games)} games")
+                logger.info(f"Simulated {len(self.current_games)} games")
+                if len(self.current_games) == 0:
+                    logger.error("Simulator returned 0 games - check simulator initialization")
                 return
 
             # Get game IDs
