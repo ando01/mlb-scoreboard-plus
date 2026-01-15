@@ -14,11 +14,28 @@ class Colors:
     CYAN = (0, 255, 255)
     MAGENTA = (255, 0, 255)
 
-    # Team colors (approximations)
-    YANKEES_BLUE = (12, 35, 64)
-    RED_SOX_RED = (189, 48, 57)
-    DODGERS_BLUE = (0, 90, 156)
-    GIANTS_ORANGE = (253, 90, 30)
+    # Team colors dictionary - actual MLB team colors
+    TEAM_COLORS = {
+        'NYY': (12, 35, 64),      # Yankees - Navy
+        'BOS': (189, 48, 57),     # Red Sox - Red
+        'LAD': (0, 90, 156),      # Dodgers - Blue
+        'SFG': (253, 90, 30),     # Giants - Orange
+        'HOU': (235, 110, 31),    # Astros - Orange
+        'ATL': (206, 17, 65),     # Braves - Red
+        'CHC': (14, 51, 134),     # Cubs - Blue
+        'STL': (196, 30, 58),     # Cardinals - Red
+        'TB': (9, 44, 92),        # Rays - Navy
+        'TOR': (19, 74, 142),     # Blue Jays - Blue
+        'BAL': (223, 70, 1),      # Orioles - Orange
+        'SD': (47, 36, 29),       # Padres - Brown
+        'ARI': (167, 25, 48),     # D-backs - Red
+        'COL': (51, 0, 111),      # Rockies - Purple
+    }
+
+    @staticmethod
+    def get_team_color(team_abbr: str):
+        """Get team color, default to blue if not found."""
+        return Colors.TEAM_COLORS.get(team_abbr, (0, 50, 150))
 
     # Status colors
     LIVE_GREEN = (0, 200, 0)
