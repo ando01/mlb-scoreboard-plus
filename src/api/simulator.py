@@ -37,6 +37,7 @@ class GameSimulator:
         self.games: List[LiveGameData] = []
         self.update_counter = 0
         self._initialize_games()
+        print(f"[SIMULATOR] Initialized with {len(self.games)} games")
 
     def _initialize_games(self):
         """Create initial simulated games."""
