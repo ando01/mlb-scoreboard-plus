@@ -34,7 +34,11 @@ class DataFetcher:
         logger.info("Starting data fetcher")
         self._running = True
         await self.client.__aenter__()
+        logger.info("Creating update task...")
         self._update_task = asyncio.create_task(self._update_loop())
+        logger.info(f"Update task created: {self._update_task}")
+        # Give the task a moment to start
+        await asyncio.sleep(0.1)
 
     async def stop(self):
         """Stop the data fetcher."""
@@ -50,7 +54,11 @@ class DataFetcher:
 
     async def _update_loop(self):
         """Main update loop."""
-        logger.info("Update loop started")
+        try:
+            logger.info("Update loop started")
+        except Exception as e:
+            logger.error(f"Error even logging start: {e}")
+
         while self._running:
             try:
                 logger.info("Calling _fetch_all_data()")
