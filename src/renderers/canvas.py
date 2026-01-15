@@ -23,8 +23,9 @@ class Canvas:
                 options.parallel = int(os.getenv('LED_PARALLEL', 1))
                 options.brightness = int(os.getenv('LED_BRIGHTNESS', 60))
                 options.hardware_mapping = os.getenv('LED_GPIO_MAPPING', 'adafruit-hat')
-                options.gpio_slowdown = 2
+                options.gpio_slowdown = int(os.getenv('LED_GPIO_SLOWDOWN', 4))
                 options.drop_privileges = False
+                options.disable_hardware_pulsing = True
 
                 self._matrix = RGBMatrix(options=options)
                 self._canvas = self._matrix.CreateFrameCanvas()
