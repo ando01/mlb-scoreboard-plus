@@ -27,6 +27,7 @@ class DataFetcher:
 
         if self.simulate:
             logger.info("Running in SIMULATION mode - using fake game data")
+            logger.info(f"Simulator has {len(self.simulator.games)} games at init")
 
     async def start(self):
         """Start the data fetcher."""
@@ -72,13 +73,18 @@ class DataFetcher:
 
     async def _fetch_games(self):
         """Fetch today's games."""
+        logger.info(f"_fetch_games called, simulate={self.simulate}")
         try:
             # Use simulator if enabled
             if self.simulate:
+                logger.info(f"About to call simulator.get_games(), simulator={self.simulator}")
                 self.current_games = self.simulator.get_games()
                 logger.info(f"Simulated {len(self.current_games)} games")
                 if len(self.current_games) == 0:
                     logger.error("Simulator returned 0 games - check simulator initialization")
+                else:
+                    for game in self.current_games:
+                        logger.info(f"  Game: {game.away_team.abbreviation} @ {game.home_team.abbreviation} - {game.state}")
                 return
 
             # Get game IDs
