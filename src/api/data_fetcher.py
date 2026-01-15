@@ -50,11 +50,15 @@ class DataFetcher:
 
     async def _update_loop(self):
         """Main update loop."""
+        logger.info("Update loop started")
         while self._running:
             try:
+                logger.info("Calling _fetch_all_data()")
                 await self._fetch_all_data()
+                logger.info("_fetch_all_data() completed")
                 await asyncio.sleep(10)  # Update every 10 seconds
             except asyncio.CancelledError:
+                logger.info("Update loop cancelled")
                 break
             except Exception as e:
                 logger.error(f"Error in update loop: {e}", exc_info=True)
@@ -62,6 +66,7 @@ class DataFetcher:
 
     async def _fetch_all_data(self):
         """Fetch all required data."""
+        logger.info("_fetch_all_data called")
         tasks = [
             self._fetch_games(),
         ]
@@ -69,7 +74,9 @@ class DataFetcher:
         if self.config.modes.standings.enabled:
             tasks.append(self._fetch_standings())
 
-        await asyncio.gather(*tasks, return_exceptions=True)
+        logger.info(f"Gathering {len(tasks)} tasks")
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        logger.info(f"Gather completed with results: {results}")
 
     async def _fetch_games(self):
         """Fetch today's games."""
