@@ -23,7 +23,8 @@ class Scoreboard:
 
     def __init__(self, config_path: Optional[str] = None, simulate: bool = False):
         self.config = load_config(config_path)
-        self.canvas = Canvas(width=128, height=64)
+        # Canvas will read dimensions from environment variables
+        self.canvas = Canvas()
         self.data_fetcher = DataFetcher(self.config, simulate=simulate)
 
         # Renderers

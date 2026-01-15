@@ -6,9 +6,16 @@ from typing import Optional, Tuple
 class Canvas:
     """Abstraction layer for LED matrix canvas."""
 
-    def __init__(self, width: int = 128, height: int = 64):
-        self.width = width
-        self.height = height
+    def __init__(self, width: int = None, height: int = None):
+        # Calculate actual display dimensions from environment
+        rows = int(os.getenv('LED_ROWS', 64))
+        cols = int(os.getenv('LED_COLS', 64))
+        chain = int(os.getenv('LED_CHAIN', 2))
+
+        # Total width = cols * chain_length
+        self.width = width if width else (cols * chain)
+        self.height = height if height else rows
+
         self._matrix = None
         self._canvas = None
         self._dev_mode = os.getenv('DEV_MODE', 'false').lower() == 'true'
