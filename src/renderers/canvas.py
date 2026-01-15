@@ -64,11 +64,38 @@ class Canvas:
 
     def draw_text(self, x: int, y: int, text: str, r: int, g: int, b: int, font=None):
         """Draw text on canvas."""
-        if hasattr(self._canvas, 'DrawText'):
+        if not self._dev_mode and hasattr(self._canvas, 'SetPixel'):
             from rgbmatrix import graphics
             if font is None:
                 font = graphics.Font()
-                font.LoadFont("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")
+                # Use BDF fonts - work much better on LED matrices than TrueType
+                # Try multiple common installation paths (absolute paths work with sudo)
+                username = os.environ.get('SUDO_USER', os.environ.get('USER', 'pi'))
+                font_paths = [
+                    f"/home/{username}/rpi-rgb-led-matrix/fonts/7x13.bdf",
+                    f"/home/{username}/mlb-scoreboard-plus/rpi-rgb-led-matrix/fonts/7x13.bdf",
+                    "/usr/local/share/fonts/7x13.bdf",
+                ]
+                loaded = False
+                for path in font_paths:
+                    try:
+                        if os.path.exists(path):
+                            font.LoadFont(path)
+                            loaded = True
+                            break
+                    except Exception as e:
+                        continue
+
+                if not loaded:
+                    # Fallback: try to find any BDF font
+                    import glob
+                    bdf_fonts = glob.glob(f"/home/{username}/*/fonts/*.bdf")
+                    if bdf_fonts:
+                        try:
+                            font.LoadFont(bdf_fonts[0])
+                        except:
+                            pass
+
             color = graphics.Color(r, g, b)
             return graphics.DrawText(self._canvas, font, x, y, color, text)
         else:
