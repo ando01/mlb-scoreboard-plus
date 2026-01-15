@@ -51,17 +51,22 @@ def main():
         default='0.0.0.0',
         help='Web UI host (default: 0.0.0.0)'
     )
+    parser.add_argument(
+        '--simulate',
+        action='store_true',
+        help='Use simulated game data (useful for testing/off-season)'
+    )
 
     args = parser.parse_args()
 
     if args.web_ui_only:
         # Run only web UI
         logger.info("Starting web UI server only")
-        scoreboard = Scoreboard(config_path=args.config)
+        scoreboard = Scoreboard(config_path=args.config, simulate=args.simulate)
         run_server(scoreboard, host=args.web_host, port=args.web_port)
     else:
         # Run scoreboard
-        scoreboard = Scoreboard(config_path=args.config)
+        scoreboard = Scoreboard(config_path=args.config, simulate=args.simulate)
 
         if args.web_ui:
             # Run web UI in background thread

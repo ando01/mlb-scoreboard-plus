@@ -21,10 +21,10 @@ logger = logging.getLogger(__name__)
 class Scoreboard:
     """Main scoreboard application."""
 
-    def __init__(self, config_path: Optional[str] = None):
+    def __init__(self, config_path: Optional[str] = None, simulate: bool = False):
         self.config = load_config(config_path)
         self.canvas = Canvas(width=128, height=64)
-        self.data_fetcher = DataFetcher(self.config)
+        self.data_fetcher = DataFetcher(self.config, simulate=simulate)
 
         # Renderers
         self.live_game_renderer = LiveGameRenderer(self.canvas, self.config)

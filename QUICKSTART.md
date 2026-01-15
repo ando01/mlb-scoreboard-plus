@@ -27,6 +27,9 @@ nano .env
 # 3. Start it up!
 source venv/bin/activate
 python3 main.py --web-ui
+
+# Off-season? Use simulation mode to see it in action!
+python3 main.py --web-ui --simulate
 ```
 
 That's it! Your scoreboard is now running.

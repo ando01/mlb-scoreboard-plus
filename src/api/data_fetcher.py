@@ -3,7 +3,9 @@ import asyncio
 from typing import List, Optional
 from datetime import datetime
 import logging
+import os
 from .mlb_client import MLBAPIClient
+from .simulator import GameSimulator
 from ..models.game import LiveGameData, StandingsEntry
 from ..models.config import AppConfig
 
@@ -13,13 +15,18 @@ logger = logging.getLogger(__name__)
 class DataFetcher:
     """Coordinates fetching and managing game data."""
 
-    def __init__(self, config: AppConfig):
+    def __init__(self, config: AppConfig, simulate: bool = False):
         self.config = config
+        self.simulate = simulate or os.getenv('SIMULATE_GAMES', 'false').lower() == 'true'
         self.client = MLBAPIClient()
+        self.simulator = GameSimulator() if self.simulate else None
         self.current_games: List[LiveGameData] = []
         self.standings: List[StandingsEntry] = []
         self._running = False
         self._update_task: Optional[asyncio.Task] = None
+
+        if self.simulate:
+            logger.info("Running in SIMULATION mode - using fake game data")
 
     async def start(self):
         """Start the data fetcher."""
@@ -66,6 +73,12 @@ class DataFetcher:
     async def _fetch_games(self):
         """Fetch today's games."""
         try:
+            # Use simulator if enabled
+            if self.simulate:
+                self.current_games = self.simulator.get_games()
+                logger.debug(f"Simulated {len(self.current_games)} games")
+                return
+
             # Get game IDs
             if self.config.teams.display_all:
                 game_ids = await self.client.get_todays_games()
@@ -95,6 +108,12 @@ class DataFetcher:
     async def _fetch_standings(self):
         """Fetch standings data."""
         try:
+            # Use simulator if enabled
+            if self.simulate:
+                self.standings = self.simulator.get_standings()
+                logger.debug(f"Simulated standings for {len(self.standings)} teams")
+                return
+
             all_standings = []
             for division in self.config.modes.standings.divisions:
                 standings = await self.client.get_standings(division)

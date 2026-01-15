@@ -136,6 +136,9 @@ The main configuration file allows fine-tuning of display modes, animations, and
 # Run scoreboard with web UI
 python3 main.py --web-ui
 
+# Run with simulated game data (great for off-season testing!)
+python3 main.py --web-ui --simulate
+
 # Run web UI only (for configuration)
 python3 main.py --web-ui-only
 
