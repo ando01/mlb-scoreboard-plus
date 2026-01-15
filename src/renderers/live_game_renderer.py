@@ -98,14 +98,19 @@ class LiveGameRenderer(BaseRenderer):
     def _render_live_game(self, game: LiveGameData):
         """Render live game with full details - matches original mlb-led-scoreboard style."""
 
-        # TOP SECTION: Team name bars with scores (like original)
-        # Away team bar (top) - blue background
-        self.canvas.draw_rect(0, 0, 128, 13, 0, 50, 150, filled=True)
+        # TOP SECTION: Team name bars with R-H-E (like traditional baseball scoreboard)
+        # Get team colors
+        away_team_color = Colors.get_team_color(game.away_team.abbreviation)
+        home_team_color = Colors.get_team_color(game.home_team.abbreviation)
+
+        # Away team bar (top) - team color background
+        self.canvas.draw_rect(0, 0, 128, 13, *away_team_color, filled=True)
         self.canvas.draw_text(2, 10, game.away_team.abbreviation, *Colors.WHITE)
 
-        # Away score (right side of blue bar)
-        away_score = str(game.away_team.score).zfill(2)  # Pad with zero like "04"
-        score_x = 128 - (len(away_score) * 7 + 5)
+        # Away R-H-E (Runs-Hits-Errors) - right side
+        away_r = str(game.away_team.score).rjust(2)
+        away_h = str(game.away_team.hits).rjust(2)
+        away_e = str(game.away_team.errors).rjust(2)
 
         away_color = Colors.WHITE
         if 'away' in self.score_animations:
@@ -115,14 +120,19 @@ class LiveGameRenderer(BaseRenderer):
             if anim.is_complete():
                 del self.score_animations['away']
 
-        self.canvas.draw_text(score_x, 10, away_score, *away_color)
+        # Display R H E columns
+        self.canvas.draw_text(85, 10, away_r, *away_color)   # Runs
+        self.canvas.draw_text(100, 10, away_h, *Colors.WHITE)  # Hits
+        self.canvas.draw_text(115, 10, away_e, *Colors.WHITE)  # Errors
 
-        # Home team bar - magenta/purple background
-        self.canvas.draw_rect(0, 14, 128, 13, 150, 0, 100, filled=True)
+        # Home team bar - team color background
+        self.canvas.draw_rect(0, 14, 128, 13, *home_team_color, filled=True)
         self.canvas.draw_text(2, 24, game.home_team.abbreviation, *Colors.WHITE)
 
-        # Home score
-        home_score = str(game.home_team.score).zfill(2)
+        # Home R-H-E
+        home_r = str(game.home_team.score).rjust(2)
+        home_h = str(game.home_team.hits).rjust(2)
+        home_e = str(game.home_team.errors).rjust(2)
 
         home_color = Colors.WHITE
         if 'home' in self.score_animations:
@@ -132,7 +142,9 @@ class LiveGameRenderer(BaseRenderer):
             if anim.is_complete():
                 del self.score_animations['home']
 
-        self.canvas.draw_text(score_x, 24, home_score, *home_color)
+        self.canvas.draw_text(85, 24, home_r, *home_color)     # Runs
+        self.canvas.draw_text(100, 24, home_h, *Colors.WHITE)  # Hits
+        self.canvas.draw_text(115, 24, home_e, *Colors.WHITE)  # Errors
 
         # MIDDLE SECTION: Pitcher info and bases
         # Pitcher label
