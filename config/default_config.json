@@ -1,0 +1,37 @@
+{
+  "display": {
+    "brightness": 60,
+    "rotation_enabled": true,
+    "rotation_interval": 15,
+    "default_mode": "live_game"
+  },
+  "teams": {
+    "favorite": "NYY",
+    "display_all": true,
+    "preferred_teams": ["NYY", "BOS", "LAD"]
+  },
+  "modes": {
+    "live_game": {
+      "enabled": true,
+      "show_pitch_count": true,
+      "show_runners": true,
+      "show_outs": true,
+      "animate_plays": true
+    },
+    "detailed_stats": {
+      "enabled": true,
+      "show_batter_stats": true,
+      "show_pitcher_stats": true
+    },
+    "standings": {
+      "enabled": true,
+      "divisions": ["AL East", "NL East"]
+    }
+  },
+  "animations": {
+    "enabled": true,
+    "transition_speed": "normal",
+    "celebrate_home_runs": true,
+    "celebrate_strikeouts": true
+  }
+}

@@ -1,0 +1,25 @@
+# Core dependencies
+aiohttp>=3.9.0
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+
+# MLB Data
+mlb-statsapi>=1.6.0
+
+# LED Matrix (uncomment for Raspberry Pi)
+# rgbmatrix>=0.0.1
+
+# Web UI
+fastapi>=0.109.0
+uvicorn[standard]>=0.25.0
+jinja2>=3.1.2
+python-multipart>=0.0.6
+
+# Utilities
+python-dateutil>=2.8.2
+pytz>=2023.3
+pillow>=10.1.0
+
+# Development
+pytest>=7.4.0
+pytest-asyncio>=0.21.0

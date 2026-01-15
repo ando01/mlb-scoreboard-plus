@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MLB LED Scoreboard Control Panel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .card h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 20px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #4ade80;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.3s;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .btn:hover {
+            background: #5568d3;
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+        }
+
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+        }
+
+        .game-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .game-item {
+            padding: 15px;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            background: #f9fafb;
+        }
+
+        .game-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .game-teams {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .game-state {
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: #4ade80;
+            color: white;
+        }
+
+        .game-state.final {
+            background: #6b7280;
+        }
+
+        .game-state.preview {
+            background: #3b82f6;
+        }
+
+        .game-score {
+            font-size: 24px;
+            color: #667eea;
+            margin: 10px 0;
+        }
+
+        .alert {
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #6ee7b7;
+        }
+
+        .alert-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fca5a5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>⚾ MLB LED Scoreboard</h1>
+            <p class="subtitle">Control Panel - Configure and monitor your LED scoreboard</p>
+        </header>
+
+        <div class="grid">
+            <!-- Status Card -->
+            <div class="card">
+                <h2>Status</h2>
+                <div class="status">
+                    <div class="status-indicator"></div>
+                    <span id="status-text">Loading...</span>
+                </div>
+                <div style="color: #666; font-size: 14px; margin-top: 10px;">
+                    <div>Current Mode: <strong id="current-mode">-</strong></div>
+                    <div>Active Games: <strong id="games-count">-</strong></div>
+                </div>
+            </div>
+
+            <!-- Display Mode Card -->
+            <div class="card">
+                <h2>Display Mode</h2>
+                <button class="btn" onclick="setMode('live_game')">Live Game</button>
+                <button class="btn" onclick="setMode('detailed_stats')">Detailed Stats</button>
+                <button class="btn" onclick="setMode('standings')">Standings</button>
+            </div>
+
+            <!-- Settings Card -->
+            <div class="card">
+                <h2>Quick Settings</h2>
+                <div class="form-group">
+                    <label>Favorite Team</label>
+                    <select id="favorite-team" onchange="updateConfig()">
+                        <option value="NYY">New York Yankees</option>
+                        <option value="BOS">Boston Red Sox</option>
+                        <option value="LAD">Los Angeles Dodgers</option>
+                        <option value="SFG">San Francisco Giants</option>
+                        <option value="CHC">Chicago Cubs</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Brightness (0-100)</label>
+                    <input type="number" id="brightness" min="0" max="100" value="60" onchange="updateConfig()">
+                </div>
+                <div class="form-group checkbox-group">
+                    <input type="checkbox" id="rotation-enabled" checked onchange="updateConfig()">
+                    <label for="rotation-enabled">Auto-rotate display</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Games Card -->
+        <div class="card">
+            <h2>Today's Games</h2>
+            <div id="games-list" class="game-list">
+                <p style="color: #666;">Loading games...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let config = {};
+
+        // Fetch status
+        async function fetchStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                document.getElementById('status-text').textContent = data.running ? 'Running' : 'Stopped';
+                document.getElementById('current-mode').textContent = data.current_mode || '-';
+                document.getElementById('games-count').textContent = data.games_count || 0;
+            } catch (error) {
+                console.error('Error fetching status:', error);
+            }
+        }
+
+        // Fetch games
+        async function fetchGames() {
+            try {
+                const response = await fetch('/api/games');
+                const games = await response.json();
+                displayGames(games);
+            } catch (error) {
+                console.error('Error fetching games:', error);
+            }
+        }
+
+        // Display games
+        function displayGames(games) {
+            const gamesList = document.getElementById('games-list');
+            if (games.length === 0) {
+                gamesList.innerHTML = '<p style="color: #666;">No games today</p>';
+                return;
+            }
+
+            gamesList.innerHTML = games.map(game => {
+                const stateClass = game.state === 'Final' ? 'final' : game.state === 'Live' ? '' : 'preview';
+                return `
+                    <div class="game-item">
+                        <div class="game-header">
+                            <span class="game-teams">${game.away_team.abbreviation} @ ${game.home_team.abbreviation}</span>
+                            <span class="game-state ${stateClass}">${game.state}</span>
+                        </div>
+                        ${game.state !== 'Preview' ? `
+                            <div class="game-score">
+                                ${game.away_team.score} - ${game.home_team.score}
+                            </div>
+                        ` : ''}
+                        ${game.inning ? `
+                            <div style="color: #666; font-size: 12px;">
+                                ${game.inning.half} ${game.inning.ordinal}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Set display mode
+        async function setMode(mode) {
+            try {
+                const response = await fetch('/api/mode', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({mode})
+                });
+                const data = await response.json();
+                showAlert('Mode changed successfully', 'success');
+                fetchStatus();
+            } catch (error) {
+                showAlert('Error changing mode', 'error');
+            }
+        }
+
+        // Update config
+        async function updateConfig() {
+            const newConfig = {
+                ...config,
+                teams: {
+                    ...config.teams,
+                    favorite: document.getElementById('favorite-team').value
+                },
+                display: {
+                    ...config.display,
+                    brightness: parseInt(document.getElementById('brightness').value),
+                    rotation_enabled: document.getElementById('rotation-enabled').checked
+                }
+            };
+
+            try {
+                const response = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(newConfig)
+                });
+                const data = await response.json();
+                showAlert('Configuration updated', 'success');
+                config = newConfig;
+            } catch (error) {
+                showAlert('Error updating configuration', 'error');
+            }
+        }
+
+        // Load config
+        async function loadConfig() {
+            try {
+                const response = await fetch('/api/config');
+                config = await response.json();
+                document.getElementById('favorite-team').value = config.teams?.favorite || 'NYY';
+                document.getElementById('brightness').value = config.display?.brightness || 60;
+                document.getElementById('rotation-enabled').checked = config.display?.rotation_enabled ?? true;
+            } catch (error) {
+                console.error('Error loading config:', error);
+            }
+        }
+
+        // Show alert
+        function showAlert(message, type) {
+            // Simple alert for now
+            console.log(`${type}: ${message}`);
+        }
+
+        // Initialize
+        loadConfig();
+        fetchStatus();
+        fetchGames();
+
+        // Refresh every 10 seconds
+        setInterval(() => {
+            fetchStatus();
+            fetchGames();
+        }, 10000);
+    </script>
+</body>
+</html>
