@@ -290,6 +290,11 @@
                 <button class="btn" onclick="setMode('live_game')">Live Game</button>
                 <button class="btn" onclick="setMode('detailed_stats')">Detailed Stats</button>
                 <button class="btn" onclick="setMode('standings')">Standings</button>
+
+                <div style="margin-top: 20px; border-top: 1px solid #ddd; padding-top: 15px;">
+                    <button class="btn" id="matrix-toggle-btn" onclick="toggleMatrix()" style="background: #ef4444;">🔴 Turn Display OFF</button>
+                    <div id="matrix-toggle-alert" style="margin-top: 10px; display: none;"></div>
+                </div>
             </div>
 
             <!-- Team Selection Card -->
@@ -686,6 +691,45 @@
             } catch (error) {
                 const alert = document.getElementById('season-mode-alert');
                 alert.textContent = 'Error changing season mode';
+                alert.className = 'alert alert-error';
+                alert.style.display = 'block';
+            }
+        }
+
+        // Toggle LED matrix on/off
+        let matrixEnabled = true;
+        async function toggleMatrix() {
+            try {
+                const newState = !matrixEnabled;
+                const response = await fetch('/api/matrix/toggle', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({enabled: newState})
+                });
+                const data = await response.json();
+
+                matrixEnabled = newState;
+                const btn = document.getElementById('matrix-toggle-btn');
+                const alert = document.getElementById('matrix-toggle-alert');
+
+                if (matrixEnabled) {
+                    btn.textContent = '🔴 Turn Display OFF';
+                    btn.style.background = '#ef4444';
+                    alert.textContent = 'LED matrix turned ON';
+                } else {
+                    btn.textContent = '🟢 Turn Display ON';
+                    btn.style.background = '#10b981';
+                    alert.textContent = 'LED matrix turned OFF';
+                }
+
+                alert.className = 'alert alert-success';
+                alert.style.display = 'block';
+                setTimeout(() => {
+                    alert.style.display = 'none';
+                }, 3000);
+            } catch (error) {
+                const alert = document.getElementById('matrix-toggle-alert');
+                alert.textContent = 'Error toggling matrix';
                 alert.className = 'alert alert-error';
                 alert.style.display = 'block';
             }

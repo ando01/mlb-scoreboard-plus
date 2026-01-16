@@ -42,6 +42,7 @@ class Scoreboard:
         self.last_rotation = datetime.now()
         self.last_news_fetch = None
         self.running = False
+        self.matrix_enabled = True  # Control LED matrix on/off
 
     async def start(self):
         """Start the scoreboard."""
@@ -95,6 +96,10 @@ class Scoreboard:
 
     async def _render_frame(self):
         """Render a single frame."""
+        # Skip rendering if matrix is disabled
+        if not self.matrix_enabled:
+            return
+
         if self.current_mode == "news":
             await self._render_news()
         elif self.current_mode == "live_game":

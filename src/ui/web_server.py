@@ -231,6 +231,30 @@ async def set_season_mode(data: dict):
     raise HTTPException(status_code=500, detail="Scoreboard not running")
 
 
+@app.post("/api/matrix/toggle")
+async def toggle_matrix(data: dict):
+    """Toggle LED matrix on/off."""
+    enabled = data.get("enabled")
+    if enabled is None:
+        raise HTTPException(status_code=400, detail="Enabled state is required")
+
+    if scoreboard_instance:
+        scoreboard_instance.matrix_enabled = enabled
+
+        if not enabled:
+            # Clear the display when turning off
+            scoreboard_instance.canvas.clear()
+            scoreboard_instance.canvas.swap()
+
+        return {
+            "status": "success",
+            "enabled": enabled,
+            "message": f"LED matrix turned {'ON' if enabled else 'OFF'}"
+        }
+
+    raise HTTPException(status_code=500, detail="Scoreboard not running")
+
+
 @app.get("/api/teams")
 async def get_all_teams():
     """Get list of all MLB teams."""
