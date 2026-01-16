@@ -38,16 +38,17 @@ class NewsRenderer(BaseRenderer):
         # Title bar
         self.canvas.draw_text(2, 9, "MLB NEWS", *Colors.CYAN, font=self.small_font)
 
-        # Source indicator
+        # Story number (top right)
+        story_num = f"{self.current_story_index + 1}/{len(self.stories)}"
+        self.canvas.draw_text(108, 9, story_num, *Colors.FINAL_GRAY, font=self.small_font)
+
+        # Source indicator (second line, right side)
         source = story.get('source', 'MLB')
         source_color = Colors.ORANGE if 'Trade Rumors' in source else Colors.LIVE_GREEN
-        self.canvas.draw_text(75, 9, source[:10], *source_color, font=self.small_font)
+        source_text = "Rumors" if 'Trade Rumors' in source else "MLB"
+        self.canvas.draw_text(95, 18, source_text, *source_color, font=self.small_font)
 
-        # Story number
-        story_num = f"{self.current_story_index + 1}/{len(self.stories)}"
-        self.canvas.draw_text(110, 9, story_num, *Colors.FINAL_GRAY, font=self.small_font)
-
-        # Headline (scrolling if needed)
+        # Headline (word-wrapped)
         headline = story.get('title', 'No headline')
 
         # Word wrap headline to multiple lines
@@ -57,7 +58,7 @@ class NewsRenderer(BaseRenderer):
 
         for word in words:
             test_line = current_line + (" " if current_line else "") + word
-            if len(test_line) * 5 < 128:  # Rough estimate for 5x7 font width
+            if len(test_line) * 5 < 120:  # Rough estimate for 5x7 font width, leave room for source
                 current_line = test_line
             else:
                 if current_line:
@@ -67,10 +68,10 @@ class NewsRenderer(BaseRenderer):
         if current_line:
             lines.append(current_line)
 
-        # Display up to 5 lines of headline
-        y = 20
+        # Display up to 5 lines of headline starting below source
+        y = 27
         for i, line in enumerate(lines[:5]):
-            self.canvas.draw_text(2, y, line[:25], *Colors.WHITE, font=self.small_font)
+            self.canvas.draw_text(2, y, line[:24], *Colors.WHITE, font=self.small_font)
             y += 9
 
         self.canvas.swap()
