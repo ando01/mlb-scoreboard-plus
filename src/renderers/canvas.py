@@ -34,8 +34,23 @@ class Canvas:
                 options.drop_privileges = False
                 options.disable_hardware_pulsing = True
 
+                # Start with low brightness to prevent power surge on startup
+                self._target_brightness = options.brightness
+                startup_brightness = int(os.getenv('LED_STARTUP_BRIGHTNESS', 10))
+                ramp_time = float(os.getenv('LED_RAMP_TIME', 2.0))
+                options.brightness = startup_brightness
+
                 self._matrix = RGBMatrix(options=options)
                 self._canvas = self._matrix.CreateFrameCanvas()
+
+                # Gradually ramp up brightness to prevent Pi reboot
+                import time
+                brightness_steps = max(1, (self._target_brightness - startup_brightness) // 5)
+                step_delay = ramp_time / brightness_steps if brightness_steps > 0 else 0
+
+                for brightness in range(startup_brightness, self._target_brightness + 1, 5):
+                    self._matrix.brightness = brightness
+                    time.sleep(step_delay)
             except ImportError:
                 print("Warning: rgbmatrix not available, using emulator mode")
                 self._dev_mode = True
