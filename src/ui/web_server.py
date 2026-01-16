@@ -197,9 +197,14 @@ async def restart_scoreboard():
     """Restart the scoreboard application."""
     import os
     import sys
+    import signal
     try:
-        # This will cause the main process to restart
-        os.execv(sys.executable, ['python3'] + sys.argv)
+        # Get the current process ID
+        pid = os.getpid()
+        # Schedule a restart by sending SIGHUP or just exit and let systemd/supervisor restart
+        # For now, we'll use os.execv with the correct arguments
+        args = [sys.executable] + sys.argv
+        os.execv(sys.executable, args)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to restart: {str(e)}")
 
