@@ -74,13 +74,13 @@ class Canvas:
             try:
                 from RGBMatrixEmulator import RGBMatrix, RGBMatrixOptions
                 options = RGBMatrixOptions()
-                options.rows = height
-                options.cols = width
+                options.rows = self.height
+                options.cols = self.width
                 self._matrix = RGBMatrix(options=options)
                 self._canvas = self._matrix.CreateFrameCanvas()
             except ImportError:
                 # Mock canvas for testing without emulator
-                self._canvas = MockCanvas(width, height)
+                self._canvas = MockCanvas(self.width, self.height)
 
     def set_pixel(self, x: int, y: int, r: int, g: int, b: int):
         """Set a single pixel."""
