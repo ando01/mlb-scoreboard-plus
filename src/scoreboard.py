@@ -96,8 +96,10 @@ class Scoreboard:
 
     async def _render_frame(self):
         """Render a single frame."""
-        # Skip rendering if matrix is disabled
+        # Keep display cleared while matrix is disabled
         if not self.matrix_enabled:
+            self.canvas.clear()
+            self.canvas.swap()
             return
 
         if self.current_mode == "news":

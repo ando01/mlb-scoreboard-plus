@@ -240,11 +240,7 @@ async def toggle_matrix(data: dict):
 
     if scoreboard_instance:
         scoreboard_instance.matrix_enabled = enabled
-
-        if not enabled:
-            # Clear the display when turning off
-            scoreboard_instance.canvas.clear()
-            scoreboard_instance.canvas.swap()
+        # Render loop will handle clearing/displaying automatically
 
         return {
             "status": "success",
