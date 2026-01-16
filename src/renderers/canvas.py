@@ -34,6 +34,11 @@ class Canvas:
                 options.drop_privileges = False
                 options.disable_hardware_pulsing = True
 
+                # Color quality settings (prevent fading/contrast issues)
+                options.pwm_bits = int(os.getenv('LED_PWM_BITS', 11))  # Higher = better color depth
+                options.pwm_lsb_nanoseconds = int(os.getenv('LED_PWM_LSB_NANOSECONDS', 130))
+                options.limit_refresh_rate_hz = int(os.getenv('LED_LIMIT_REFRESH', 0))  # 0 = no limit
+
                 # Start with low brightness to prevent power surge on startup
                 self._target_brightness = options.brightness
                 startup_brightness = int(os.getenv('LED_STARTUP_BRIGHTNESS', 10))

@@ -111,7 +111,11 @@ class LiveGameRenderer(BaseRenderer):
 
         # Score on right
         away_score = str(game.away_team.score).rjust(2)
-        self.canvas.draw_text(110, 10, away_score, *Colors.WHITE)
+        self.canvas.draw_text(90, 10, away_score, *Colors.WHITE)
+
+        # R-H-E on far right (Runs-Hits-Errors)
+        away_rhe = f"{game.away_team.hits}-{game.away_team.errors}"
+        self.canvas.draw_text(105, 10, away_rhe, *Colors.FINAL_GRAY, font=self.small_font)
 
         # SECOND BAR: Home team (13-25 pixels high)
         self.canvas.draw_rect(0, 13, 128, 12, *home_team_color, filled=True)
@@ -119,7 +123,11 @@ class LiveGameRenderer(BaseRenderer):
 
         # Score on right
         home_score = str(game.home_team.score).rjust(2)
-        self.canvas.draw_text(110, 23, home_score, *Colors.WHITE)
+        self.canvas.draw_text(90, 23, home_score, *Colors.WHITE)
+
+        # R-H-E on far right (Runs-Hits-Errors)
+        home_rhe = f"{game.home_team.hits}-{game.home_team.errors}"
+        self.canvas.draw_text(105, 23, home_rhe, *Colors.FINAL_GRAY, font=self.small_font)
 
         # MIDDLE SECTION: P: [pitcher name]
         if game.current_pitcher:
