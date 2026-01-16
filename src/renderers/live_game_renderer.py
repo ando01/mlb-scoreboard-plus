@@ -131,10 +131,16 @@ class LiveGameRenderer(BaseRenderer):
         self.canvas.draw_text(96, 23, home_h, *Colors.WHITE)
         self.canvas.draw_text(114, 23, home_e, *Colors.WHITE)
 
-        # MIDDLE SECTION: P: [pitcher name]
+        # MIDDLE SECTION: P: [pitcher name] ERA
         if game.current_pitcher:
             pitcher_name = game.current_pitcher.name.split()[-1][:8]  # Last name
-            self.canvas.draw_text(2, 39, f"P:{pitcher_name}", *Colors.WHITE, font=self.small_font)
+            pitcher_text = f"P:{pitcher_name}"
+            self.canvas.draw_text(2, 39, pitcher_text, *Colors.WHITE, font=self.small_font)
+
+            # Add ERA if available
+            if game.current_pitcher.era:
+                era_text = f"{game.current_pitcher.era}"
+                self.canvas.draw_text(60, 39, era_text, *Colors.YELLOW, font=self.small_font)
 
         # Baseball diamond - rotated squares (diamonds) on right
         if self.config.modes.live_game.show_runners:
@@ -185,13 +191,18 @@ class LiveGameRenderer(BaseRenderer):
                 self.canvas.draw_line(first_x, first_y + diamond_size, first_x - diamond_size, first_y, *Colors.WHITE)
                 self.canvas.draw_line(first_x - diamond_size, first_y, first_x, first_y - diamond_size, *Colors.WHITE)
 
-        # BOTTOM SECTION: B: [batter] [count] with out squares
+        # BOTTOM SECTION: B: [batter] [count] AVG with out squares
         if game.current_batter:
             batter_name = game.current_batter.name.split()[-1][:6]  # Last name truncated
             count_text = f"{game.count.balls}-{game.count.strikes}"
 
             ab_text = f"B:{batter_name} {count_text}"
             self.canvas.draw_text(2, 54, ab_text, *Colors.WHITE, font=self.small_font)
+
+            # Add batting average if available
+            if game.current_batter.avg:
+                avg_text = f"{game.current_batter.avg}"
+                self.canvas.draw_text(60, 54, avg_text, *Colors.YELLOW, font=self.small_font)
 
             # Outs as small squares on right
             if self.config.modes.live_game.show_outs:
