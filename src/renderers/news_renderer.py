@@ -42,13 +42,13 @@ class NewsRenderer(BaseRenderer):
         story_num = f"{self.current_story_index + 1}/{len(self.stories)}"
         self.canvas.draw_text(108, 9, story_num, *Colors.FINAL_GRAY, font=self.small_font)
 
-        # Source indicator (second line, right side)
+        # Source indicator (second line, left side under title)
         source = story.get('source', 'MLB')
         source_color = Colors.ORANGE if 'Trade Rumors' in source else Colors.LIVE_GREEN
         source_text = "Rumors" if 'Trade Rumors' in source else "MLB"
-        self.canvas.draw_text(95, 18, source_text, *source_color, font=self.small_font)
+        self.canvas.draw_text(2, 18, source_text, *source_color, font=self.small_font)
 
-        # Headline (word-wrapped)
+        # Headline (word-wrapped) - using default font (7x13) for larger text
         headline = story.get('title', 'No headline')
 
         # Word wrap headline to multiple lines
@@ -58,7 +58,7 @@ class NewsRenderer(BaseRenderer):
 
         for word in words:
             test_line = current_line + (" " if current_line else "") + word
-            if len(test_line) * 5 < 120:  # Rough estimate for 5x7 font width, leave room for source
+            if len(test_line) * 7 < 128:  # Rough estimate for 7x13 font width
                 current_line = test_line
             else:
                 if current_line:
@@ -68,16 +68,16 @@ class NewsRenderer(BaseRenderer):
         if current_line:
             lines.append(current_line)
 
-        # Display up to 5 lines of headline starting below source
-        y = 27
-        for i, line in enumerate(lines[:5]):
-            self.canvas.draw_text(2, y, line[:24], *Colors.WHITE, font=self.small_font)
-            y += 9
+        # Display up to 4 lines of headline (larger font takes more space)
+        y = 30
+        for i, line in enumerate(lines[:4]):
+            self.canvas.draw_text(2, y, line[:18], *Colors.WHITE)  # Using default larger font
+            y += 13
 
         self.canvas.swap()
 
-        # Auto-advance to next story every 10 seconds
-        if time.time() - self.last_update > 10:
+        # Auto-advance to next story every 13 seconds
+        if time.time() - self.last_update > 13:
             self.current_story_index += 1
             self.last_update = time.time()
 
