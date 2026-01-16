@@ -118,44 +118,66 @@ class LiveGameRenderer(BaseRenderer):
         home_score = str(game.home_team.score).rjust(2)
         self.canvas.draw_text(110, 23, home_score, *Colors.WHITE)
 
-        # MIDDLE SECTION: Pitcher* (with asterisk showing batting team)
-        pitcher_text = "Pitcher"
-        if game.inning.half == "top":
-            pitcher_text = "Pitcher*"  # Asterisk for away batting
-        else:
-            pitcher_text = "*Pitcher"  # Asterisk for home batting
-        self.canvas.draw_text(2, 36, pitcher_text, *Colors.WHITE)
+        # MIDDLE SECTION: P: [pitcher name]
+        if game.current_pitcher:
+            pitcher_name = game.current_pitcher.name.split()[-1][:8]  # Last name
+            self.canvas.draw_text(2, 36, f"P:{pitcher_name}", *Colors.WHITE)
 
-        # Baseball diamond squares on right
+        # Baseball diamond - rotated squares (diamonds) on right
         if self.config.modes.live_game.show_runners:
-            base_x = 106
-            base_y = 28
+            base_x = 108
+            base_y = 30
+            diamond_size = 4  # Half-width of diamond
 
-            # Small square for each base (empty=outline, filled=runner)
-            # Second base (top)
+            # Draw diamonds (rotated 45 degrees) for each base
+            # Second base (top center)
             if game.runners.second:
-                self.canvas.draw_rect(base_x, base_y, 5, 5, *Colors.WHITE, filled=True)
+                # Filled yellow diamond
+                for dy in range(-diamond_size, diamond_size + 1):
+                    width = diamond_size - abs(dy)
+                    for dx in range(-width, width + 1):
+                        self.canvas.set_pixel(base_x + dx, base_y + dy, *Colors.YELLOW)
             else:
-                self.canvas.draw_rect(base_x, base_y, 5, 5, *Colors.WHITE, filled=False)
+                # Empty white diamond outline
+                self.canvas.draw_line(base_x, base_y - diamond_size, base_x + diamond_size, base_y, *Colors.WHITE)
+                self.canvas.draw_line(base_x + diamond_size, base_y, base_x, base_y + diamond_size, *Colors.WHITE)
+                self.canvas.draw_line(base_x, base_y + diamond_size, base_x - diamond_size, base_y, *Colors.WHITE)
+                self.canvas.draw_line(base_x - diamond_size, base_y, base_x, base_y - diamond_size, *Colors.WHITE)
 
             # Third base (left)
+            third_x = base_x - 9
+            third_y = base_y + 6
             if game.runners.third:
-                self.canvas.draw_rect(base_x - 6, base_y + 5, 5, 5, *Colors.WHITE, filled=True)
+                for dy in range(-diamond_size, diamond_size + 1):
+                    width = diamond_size - abs(dy)
+                    for dx in range(-width, width + 1):
+                        self.canvas.set_pixel(third_x + dx, third_y + dy, *Colors.YELLOW)
             else:
-                self.canvas.draw_rect(base_x - 6, base_y + 5, 5, 5, *Colors.WHITE, filled=False)
+                self.canvas.draw_line(third_x, third_y - diamond_size, third_x + diamond_size, third_y, *Colors.WHITE)
+                self.canvas.draw_line(third_x + diamond_size, third_y, third_x, third_y + diamond_size, *Colors.WHITE)
+                self.canvas.draw_line(third_x, third_y + diamond_size, third_x - diamond_size, third_y, *Colors.WHITE)
+                self.canvas.draw_line(third_x - diamond_size, third_y, third_x, third_y - diamond_size, *Colors.WHITE)
 
             # First base (right)
+            first_x = base_x + 9
+            first_y = base_y + 6
             if game.runners.first:
-                self.canvas.draw_rect(base_x + 6, base_y + 5, 5, 5, *Colors.WHITE, filled=True)
+                for dy in range(-diamond_size, diamond_size + 1):
+                    width = diamond_size - abs(dy)
+                    for dx in range(-width, width + 1):
+                        self.canvas.set_pixel(first_x + dx, first_y + dy, *Colors.YELLOW)
             else:
-                self.canvas.draw_rect(base_x + 6, base_y + 5, 5, 5, *Colors.WHITE, filled=False)
+                self.canvas.draw_line(first_x, first_y - diamond_size, first_x + diamond_size, first_y, *Colors.WHITE)
+                self.canvas.draw_line(first_x + diamond_size, first_y, first_x, first_y + diamond_size, *Colors.WHITE)
+                self.canvas.draw_line(first_x, first_y + diamond_size, first_x - diamond_size, first_y, *Colors.WHITE)
+                self.canvas.draw_line(first_x - diamond_size, first_y, first_x, first_y - diamond_size, *Colors.WHITE)
 
-        # BOTTOM SECTION: AB:Al 2-0 with out squares
+        # BOTTOM SECTION: B: [batter] [count] with out squares
         if game.current_batter:
-            batter_name = game.current_batter.name.split()[-1][:2]  # "Al" format
+            batter_name = game.current_batter.name.split()[-1][:6]  # Last name truncated
             count_text = f"{game.count.balls}-{game.count.strikes}"
 
-            ab_text = f"AB:{batter_name} {count_text}"
+            ab_text = f"B:{batter_name} {count_text}"
             self.canvas.draw_text(2, 49, ab_text, *Colors.WHITE)
 
             # Outs as small squares on right
