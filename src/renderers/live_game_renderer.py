@@ -109,25 +109,25 @@ class LiveGameRenderer(BaseRenderer):
         self.canvas.draw_rect(0, 0, 128, 12, *away_team_color, filled=True)
         self.canvas.draw_text(2, 10, game.away_team.abbreviation, *Colors.WHITE)
 
-        # Score on right
-        away_score = str(game.away_team.score).rjust(2)
-        self.canvas.draw_text(90, 10, away_score, *Colors.WHITE)
-
-        # R-H-E on far right (Runs-Hits-Errors)
-        away_rhe = f"{game.away_team.hits}-{game.away_team.errors}"
-        self.canvas.draw_text(105, 10, away_rhe, *Colors.FINAL_GRAY, font=self.small_font)
+        # R-H-E display: three evenly-spaced numbers (Runs Hits Errors)
+        away_r = str(game.away_team.score)
+        away_h = str(game.away_team.hits)
+        away_e = str(game.away_team.errors)
+        self.canvas.draw_text(85, 10, away_r, *Colors.WHITE)
+        self.canvas.draw_text(99, 10, away_h, *Colors.WHITE)
+        self.canvas.draw_text(113, 10, away_e, *Colors.WHITE)
 
         # SECOND BAR: Home team (13-25 pixels high)
         self.canvas.draw_rect(0, 13, 128, 12, *home_team_color, filled=True)
         self.canvas.draw_text(2, 23, game.home_team.abbreviation, *Colors.WHITE)
 
-        # Score on right
-        home_score = str(game.home_team.score).rjust(2)
-        self.canvas.draw_text(90, 23, home_score, *Colors.WHITE)
-
-        # R-H-E on far right (Runs-Hits-Errors)
-        home_rhe = f"{game.home_team.hits}-{game.home_team.errors}"
-        self.canvas.draw_text(105, 23, home_rhe, *Colors.FINAL_GRAY, font=self.small_font)
+        # R-H-E display: three evenly-spaced numbers (Runs Hits Errors)
+        home_r = str(game.home_team.score)
+        home_h = str(game.home_team.hits)
+        home_e = str(game.home_team.errors)
+        self.canvas.draw_text(85, 23, home_r, *Colors.WHITE)
+        self.canvas.draw_text(99, 23, home_h, *Colors.WHITE)
+        self.canvas.draw_text(113, 23, home_e, *Colors.WHITE)
 
         # MIDDLE SECTION: P: [pitcher name]
         if game.current_pitcher:
