@@ -131,6 +131,15 @@ class LiveGameRenderer(BaseRenderer):
         self.canvas.draw_text(96, 23, home_h, *Colors.WHITE)
         self.canvas.draw_text(114, 23, home_e, *Colors.WHITE)
 
+        # INNING DISPLAY: Show inning number with arrow (top/bottom) in center
+        if game.inning:
+            inning_num = str(game.inning.num)
+            # Use ▲ for top, ▼ for bottom
+            arrow = "▲" if game.inning.half == "top" else "▼"
+            inning_text = f"{arrow}{inning_num}"
+            # Position in center between pitcher/batter and bases
+            self.canvas.draw_text(58, 34, inning_text, *Colors.CYAN, font=self.small_font)
+
         # MIDDLE SECTION: P: [pitcher name] with ERA below
         if game.current_pitcher:
             pitcher_name = game.current_pitcher.name.split()[-1][:8]  # Last name

@@ -382,6 +382,19 @@
                 document.getElementById('status-text').textContent = data.running ? 'Running' : 'Stopped';
                 document.getElementById('current-mode').textContent = data.current_mode || '-';
                 document.getElementById('games-count').textContent = data.games_count || 0;
+
+                // Update matrix toggle button state
+                if (data.matrix_enabled !== undefined) {
+                    matrixEnabled = data.matrix_enabled;
+                    const btn = document.getElementById('matrix-toggle-btn');
+                    if (matrixEnabled) {
+                        btn.textContent = '🔴 Turn Display OFF';
+                        btn.style.background = '#ef4444';
+                    } else {
+                        btn.textContent = '🟢 Turn Display ON';
+                        btn.style.background = '#10b981';
+                    }
+                }
             } catch (error) {
                 console.error('Error fetching status:', error);
             }

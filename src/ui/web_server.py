@@ -107,6 +107,8 @@ async def get_status():
         return {
             "running": scoreboard_instance.running,
             "current_mode": scoreboard_instance.current_mode,
+            "season_mode": scoreboard_instance.season_mode,
+            "matrix_enabled": scoreboard_instance.matrix_enabled,
             "games_count": len(data_fetcher_instance.get_games()) if data_fetcher_instance else 0
         }
     return {"running": False}
