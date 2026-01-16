@@ -109,25 +109,27 @@ class LiveGameRenderer(BaseRenderer):
         self.canvas.draw_rect(0, 0, 128, 12, *away_team_color, filled=True)
         self.canvas.draw_text(2, 10, game.away_team.abbreviation, *Colors.WHITE)
 
-        # R-H-E display: three evenly-spaced numbers (Runs Hits Errors)
-        away_r = str(game.away_team.score)
-        away_h = str(game.away_team.hits)
-        away_e = str(game.away_team.errors)
-        self.canvas.draw_text(85, 10, away_r, *Colors.WHITE)
-        self.canvas.draw_text(99, 10, away_h, *Colors.WHITE)
-        self.canvas.draw_text(113, 10, away_e, *Colors.WHITE)
+        # R-H-E display: three right-justified columns (Runs Hits Errors)
+        # Right-justify each number to prevent crowding with double digits
+        away_r = str(game.away_team.score).rjust(2)
+        away_h = str(game.away_team.hits).rjust(2)
+        away_e = str(game.away_team.errors).rjust(1)
+        self.canvas.draw_text(80, 10, away_r, *Colors.WHITE)
+        self.canvas.draw_text(96, 10, away_h, *Colors.WHITE)
+        self.canvas.draw_text(114, 10, away_e, *Colors.WHITE)
 
         # SECOND BAR: Home team (13-25 pixels high)
         self.canvas.draw_rect(0, 13, 128, 12, *home_team_color, filled=True)
         self.canvas.draw_text(2, 23, game.home_team.abbreviation, *Colors.WHITE)
 
-        # R-H-E display: three evenly-spaced numbers (Runs Hits Errors)
-        home_r = str(game.home_team.score)
-        home_h = str(game.home_team.hits)
-        home_e = str(game.home_team.errors)
-        self.canvas.draw_text(85, 23, home_r, *Colors.WHITE)
-        self.canvas.draw_text(99, 23, home_h, *Colors.WHITE)
-        self.canvas.draw_text(113, 23, home_e, *Colors.WHITE)
+        # R-H-E display: three right-justified columns (Runs Hits Errors)
+        # Right-justify each number to prevent crowding with double digits
+        home_r = str(game.home_team.score).rjust(2)
+        home_h = str(game.home_team.hits).rjust(2)
+        home_e = str(game.home_team.errors).rjust(1)
+        self.canvas.draw_text(80, 23, home_r, *Colors.WHITE)
+        self.canvas.draw_text(96, 23, home_h, *Colors.WHITE)
+        self.canvas.draw_text(114, 23, home_e, *Colors.WHITE)
 
         # MIDDLE SECTION: P: [pitcher name]
         if game.current_pitcher:
