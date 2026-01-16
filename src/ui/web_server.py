@@ -112,6 +112,100 @@ async def get_status():
     return {"running": False}
 
 
+@app.post("/api/brightness")
+async def set_brightness(data: dict):
+    """Set LED brightness in real-time."""
+    brightness = data.get("brightness")
+    if brightness is None or not (0 <= brightness <= 100):
+        raise HTTPException(status_code=400, detail="Brightness must be 0-100")
+
+    if scoreboard_instance and hasattr(scoreboard_instance.canvas, '_matrix'):
+        try:
+            scoreboard_instance.canvas._matrix.brightness = int(brightness)
+            return {"status": "success", "brightness": brightness}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to set brightness: {str(e)}")
+
+    raise HTTPException(status_code=500, detail="Scoreboard not running")
+
+
+@app.post("/api/restart")
+async def restart_scoreboard():
+    """Restart the scoreboard application."""
+    import os
+    import sys
+    try:
+        # This will cause the main process to restart
+        os.execv(sys.executable, ['python3'] + sys.argv)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to restart: {str(e)}")
+
+
+@app.get("/api/teams")
+async def get_all_teams():
+    """Get list of all MLB teams."""
+    teams = [
+        {"abbr": "NYY", "name": "New York Yankees"},
+        {"abbr": "BOS", "name": "Boston Red Sox"},
+        {"abbr": "TB", "name": "Tampa Bay Rays"},
+        {"abbr": "TOR", "name": "Toronto Blue Jays"},
+        {"abbr": "BAL", "name": "Baltimore Orioles"},
+        {"abbr": "CLE", "name": "Cleveland Guardians"},
+        {"abbr": "MIN", "name": "Minnesota Twins"},
+        {"abbr": "CHW", "name": "Chicago White Sox"},
+        {"abbr": "DET", "name": "Detroit Tigers"},
+        {"abbr": "KC", "name": "Kansas City Royals"},
+        {"abbr": "HOU", "name": "Houston Astros"},
+        {"abbr": "TEX", "name": "Texas Rangers"},
+        {"abbr": "SEA", "name": "Seattle Mariners"},
+        {"abbr": "LAA", "name": "Los Angeles Angels"},
+        {"abbr": "OAK", "name": "Oakland Athletics"},
+        {"abbr": "ATL", "name": "Atlanta Braves"},
+        {"abbr": "PHI", "name": "Philadelphia Phillies"},
+        {"abbr": "NYM", "name": "New York Mets"},
+        {"abbr": "MIA", "name": "Miami Marlins"},
+        {"abbr": "WSH", "name": "Washington Nationals"},
+        {"abbr": "MIL", "name": "Milwaukee Brewers"},
+        {"abbr": "STL", "name": "St. Louis Cardinals"},
+        {"abbr": "CHC", "name": "Chicago Cubs"},
+        {"abbr": "CIN", "name": "Cincinnati Reds"},
+        {"abbr": "PIT", "name": "Pittsburgh Pirates"},
+        {"abbr": "LAD", "name": "Los Angeles Dodgers"},
+        {"abbr": "SFG", "name": "San Francisco Giants"},
+        {"abbr": "SD", "name": "San Diego Padres"},
+        {"abbr": "ARI", "name": "Arizona Diamondbacks"},
+        {"abbr": "COL", "name": "Colorado Rockies"},
+    ]
+    return teams
+
+
+@app.post("/api/teams/selected")
+async def set_selected_teams(data: dict):
+    """Set teams to display and cycle through."""
+    teams = data.get("teams", [])
+    if not teams or not isinstance(teams, list):
+        raise HTTPException(status_code=400, detail="Teams must be a non-empty list")
+
+    if len(teams) < 1 or len(teams) > 5:
+        raise HTTPException(status_code=400, detail="Must select 1-5 teams")
+
+    if scoreboard_instance:
+        # Update config
+        config = load_config()
+        config.teams.preferred_teams = teams
+        config.teams.display_all = False
+        save_config(config)
+
+        # Update running scoreboard
+        scoreboard_instance.config = config
+        if data_fetcher_instance:
+            data_fetcher_instance.config = config
+
+        return {"status": "success", "teams": teams}
+
+    raise HTTPException(status_code=500, detail="Scoreboard not running")
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     """WebSocket endpoint for live updates."""

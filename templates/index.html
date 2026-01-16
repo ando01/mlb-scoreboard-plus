@@ -242,27 +242,30 @@
                 <button class="btn" onclick="setMode('standings')">Standings</button>
             </div>
 
+            <!-- Team Selection Card -->
+            <div class="card">
+                <h2>Team Selection</h2>
+                <p style="color: #666; font-size: 13px; margin-bottom: 15px;">Select 1-5 teams to display and cycle through</p>
+                <select id="team-selector" multiple size="8" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px;">
+                    <!-- Populated via JavaScript -->
+                </select>
+                <button class="btn" onclick="saveSelectedTeams()">Save Team Selection</button>
+                <div id="teams-alert" style="margin-top: 10px; display: none;"></div>
+            </div>
+
             <!-- Settings Card -->
             <div class="card">
                 <h2>Quick Settings</h2>
                 <div class="form-group">
-                    <label>Favorite Team</label>
-                    <select id="favorite-team" onchange="updateConfig()">
-                        <option value="NYY">New York Yankees</option>
-                        <option value="BOS">Boston Red Sox</option>
-                        <option value="LAD">Los Angeles Dodgers</option>
-                        <option value="SFG">San Francisco Giants</option>
-                        <option value="CHC">Chicago Cubs</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Brightness (0-100)</label>
-                    <input type="number" id="brightness" min="0" max="100" value="60" onchange="updateConfig()">
+                    <label>Brightness (0-100) - Live Adjustment</label>
+                    <input type="range" id="brightness-slider" min="0" max="100" value="30" oninput="updateBrightness(this.value)" style="width: 100%; margin-bottom: 5px;">
+                    <span id="brightness-value" style="color: #666; font-size: 14px;">30</span>
                 </div>
                 <div class="form-group checkbox-group">
                     <input type="checkbox" id="rotation-enabled" checked onchange="updateConfig()">
                     <label for="rotation-enabled">Auto-rotate display</label>
                 </div>
+                <button class="btn" onclick="restartScoreboard()" style="background: #ef4444; margin-top: 10px;">🔄 Restart Scoreboard</button>
             </div>
         </div>
 
@@ -397,8 +400,101 @@
             console.log(`${type}: ${message}`);
         }
 
+        // Load all MLB teams into selector
+        async function loadTeams() {
+            try {
+                const response = await fetch('/api/teams');
+                const teams = await response.json();
+                const selector = document.getElementById('team-selector');
+                selector.innerHTML = teams.map(team =>
+                    `<option value="${team.abbr}">${team.name}</option>`
+                ).join('');
+
+                // Load currently selected teams from config
+                if (config.teams?.preferred_teams) {
+                    Array.from(selector.options).forEach(option => {
+                        if (config.teams.preferred_teams.includes(option.value)) {
+                            option.selected = true;
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading teams:', error);
+            }
+        }
+
+        // Save selected teams
+        async function saveSelectedTeams() {
+            const selector = document.getElementById('team-selector');
+            const selected = Array.from(selector.selectedOptions).map(opt => opt.value);
+
+            if (selected.length < 1 || selected.length > 5) {
+                showTeamsAlert('Please select 1-5 teams', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/teams/selected', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({teams: selected})
+                });
+                const data = await response.json();
+                showTeamsAlert(`Saved ${selected.length} teams successfully!`, 'success');
+            } catch (error) {
+                showTeamsAlert('Error saving teams', 'error');
+            }
+        }
+
+        // Show teams alert
+        function showTeamsAlert(message, type) {
+            const alert = document.getElementById('teams-alert');
+            alert.textContent = message;
+            alert.className = `alert alert-${type}`;
+            alert.style.display = 'block';
+            setTimeout(() => {
+                alert.style.display = 'none';
+            }, 3000);
+        }
+
+        // Update brightness in real-time
+        async function updateBrightness(value) {
+            document.getElementById('brightness-value').textContent = value;
+
+            try {
+                const response = await fetch('/api/brightness', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({brightness: parseInt(value)})
+                });
+                const data = await response.json();
+                // Success - brightness updated live!
+            } catch (error) {
+                console.error('Error updating brightness:', error);
+            }
+        }
+
+        // Restart scoreboard
+        async function restartScoreboard() {
+            if (!confirm('Are you sure you want to restart the scoreboard? This will take a few seconds.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/restart', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                });
+                alert('Scoreboard is restarting... Please wait 10-15 seconds and refresh this page.');
+            } catch (error) {
+                // Expected - the server is restarting
+                alert('Scoreboard is restarting... Please wait 10-15 seconds and refresh this page.');
+            }
+        }
+
         // Initialize
         loadConfig();
+        loadTeams();
         fetchStatus();
         fetchGames();
 
