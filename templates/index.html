@@ -284,17 +284,12 @@
                 <div id="season-mode-alert" style="margin-top: 10px; display: none;"></div>
             </div>
 
-            <!-- Display Mode Card (Collapsible, moves to bottom on mobile) -->
+            <!-- Display Mode Card (moves to bottom on mobile) -->
             <div class="card display-mode">
-                <div class="collapsible-header" onclick="toggleCollapse('display-mode')">
-                    <h2>Display Mode</h2>
-                    <span class="collapse-icon" id="display-mode-icon">▼</span>
-                </div>
-                <div class="collapsible-content" id="display-mode-content" style="max-height: 200px;">
-                    <button class="btn" onclick="setMode('live_game')">Live Game</button>
-                    <button class="btn" onclick="setMode('detailed_stats')">Detailed Stats</button>
-                    <button class="btn" onclick="setMode('standings')">Standings</button>
-                </div>
+                <h2>Display Mode</h2>
+                <button class="btn" onclick="setMode('live_game')">Live Game</button>
+                <button class="btn" onclick="setMode('detailed_stats')">Detailed Stats</button>
+                <button class="btn" onclick="setMode('standings')">Standings</button>
             </div>
 
             <!-- Team Selection Card -->
@@ -308,52 +303,57 @@
                 <div id="teams-alert" style="margin-top: 10px; display: none;"></div>
             </div>
 
-            <!-- Settings Card -->
+            <!-- Settings Card (Collapsible) -->
             <div class="card">
-                <h2>Display Settings</h2>
-
-                <!-- Brightness - Live Update -->
-                <div class="form-group">
-                    <label>Brightness (0-100) - Live Adjustment</label>
-                    <input type="range" id="brightness-slider" min="0" max="100" value="30" oninput="updateBrightness(this.value)" style="width: 100%; margin-bottom: 5px;">
-                    <span id="brightness-value" style="color: #666; font-size: 14px;">30</span>
+                <div class="collapsible-header" onclick="toggleCollapse('display-settings')">
+                    <h2>Display Settings</h2>
+                    <span class="collapse-icon" id="display-settings-icon">▼</span>
                 </div>
+                <div class="collapsible-content" id="display-settings-content" style="max-height: 800px;">
 
-                <hr style="margin: 20px 0; border: 0; border-top: 1px solid #e5e7eb;">
-
-                <!-- Color Quality Settings - Requires Restart -->
-                <div style="margin-bottom: 15px;">
-                    <h3 style="font-size: 16px; margin-bottom: 10px; color: #666;">Color Quality (Restart Required)</h3>
-
+                    <!-- Brightness - Live Update -->
                     <div class="form-group">
-                        <label>Contrast/Smoothness (100-400)</label>
-                        <input type="range" id="pwm-lsb-slider" min="100" max="400" value="200" oninput="updatePWMLSBDisplay(this.value)" style="width: 100%; margin-bottom: 5px;">
-                        <span id="pwm-lsb-value" style="color: #666; font-size: 12px;">200 (Lower=Brighter/Harsher, Higher=Softer)</span>
+                        <label>Brightness (0-100) - Live Adjustment</label>
+                        <input type="range" id="brightness-slider" min="0" max="100" value="30" oninput="updateBrightness(this.value)" style="width: 100%; margin-bottom: 5px;">
+                        <span id="brightness-value" style="color: #666; font-size: 14px;">30</span>
                     </div>
 
-                    <div class="form-group">
-                        <label>Color Depth (1-11)</label>
-                        <input type="range" id="pwm-bits-slider" min="1" max="11" value="11" oninput="updatePWMBitsDisplay(this.value)" style="width: 100%; margin-bottom: 5px;">
-                        <span id="pwm-bits-value" style="color: #666; font-size: 12px;">11 bits (Higher=Better colors)</span>
+                    <hr style="margin: 20px 0; border: 0; border-top: 1px solid #e5e7eb;">
+
+                    <!-- Color Quality Settings - Requires Restart -->
+                    <div style="margin-bottom: 15px;">
+                        <h3 style="font-size: 16px; margin-bottom: 10px; color: #666;">Color Quality (Restart Required)</h3>
+
+                        <div class="form-group">
+                            <label>Contrast/Smoothness (100-400)</label>
+                            <input type="range" id="pwm-lsb-slider" min="100" max="400" value="200" oninput="updatePWMLSBDisplay(this.value)" style="width: 100%; margin-bottom: 5px;">
+                            <span id="pwm-lsb-value" style="color: #666; font-size: 12px;">200 (Lower=Brighter/Harsher, Higher=Softer)</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Color Depth (1-11)</label>
+                            <input type="range" id="pwm-bits-slider" min="1" max="11" value="11" oninput="updatePWMBitsDisplay(this.value)" style="width: 100%; margin-bottom: 5px;">
+                            <span id="pwm-bits-value" style="color: #666; font-size: 12px;">11 bits (Higher=Better colors)</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Refresh Speed (2-6)</label>
+                            <input type="range" id="gpio-slowdown-slider" min="2" max="6" value="4" oninput="updateGPIODisplay(this.value)" style="width: 100%; margin-bottom: 5px;">
+                            <span id="gpio-slowdown-value" style="color: #666; font-size: 12px;">4 (Higher=Less flicker, slower)</span>
+                        </div>
+
+                        <button class="btn" onclick="saveDisplaySettings()" style="background: #10b981; margin-top: 10px;">💾 Save Color Settings</button>
+                        <div id="display-alert" style="margin-top: 10px; display: none;"></div>
                     </div>
 
-                    <div class="form-group">
-                        <label>Refresh Speed (2-6)</label>
-                        <input type="range" id="gpio-slowdown-slider" min="2" max="6" value="4" oninput="updateGPIODisplay(this.value)" style="width: 100%; margin-bottom: 5px;">
-                        <span id="gpio-slowdown-value" style="color: #666; font-size: 12px;">4 (Higher=Less flicker, slower)</span>
+                    <hr style="margin: 20px 0; border: 0; border-top: 1px solid #e5e7eb;">
+
+                    <div class="form-group checkbox-group">
+                        <input type="checkbox" id="rotation-enabled" checked onchange="updateConfig()">
+                        <label for="rotation-enabled">Auto-rotate display</label>
                     </div>
-
-                    <button class="btn" onclick="saveDisplaySettings()" style="background: #10b981; margin-top: 10px;">💾 Save Color Settings</button>
-                    <div id="display-alert" style="margin-top: 10px; display: none;"></div>
+                    <button class="btn" onclick="restartScoreboard()" style="background: #ef4444; margin-top: 10px;">🔄 Restart Scoreboard</button>
                 </div>
-
-                <hr style="margin: 20px 0; border: 0; border-top: 1px solid #e5e7eb;">
-
-                <div class="form-group checkbox-group">
-                    <input type="checkbox" id="rotation-enabled" checked onchange="updateConfig()">
-                    <label for="rotation-enabled">Auto-rotate display</label>
-                </div>
-                <button class="btn" onclick="restartScoreboard()" style="background: #ef4444; margin-top: 10px;">🔄 Restart Scoreboard</button>
             </div>
         </div>
 

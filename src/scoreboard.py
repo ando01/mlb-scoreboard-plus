@@ -172,6 +172,11 @@ class Scoreboard:
 
     def _rotate_display(self):
         """Rotate to next display."""
+        # Don't rotate in off-season mode - just show news
+        if self.season_mode == "off" or self.current_mode == "news":
+            # In off-season mode, news renderer handles its own story rotation
+            return
+
         games = self.data_fetcher.get_games()
 
         if self.current_mode == "live_game" and len(games) > 1:
