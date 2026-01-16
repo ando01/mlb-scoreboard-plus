@@ -255,12 +255,45 @@
 
             <!-- Settings Card -->
             <div class="card">
-                <h2>Quick Settings</h2>
+                <h2>Display Settings</h2>
+
+                <!-- Brightness - Live Update -->
                 <div class="form-group">
                     <label>Brightness (0-100) - Live Adjustment</label>
                     <input type="range" id="brightness-slider" min="0" max="100" value="30" oninput="updateBrightness(this.value)" style="width: 100%; margin-bottom: 5px;">
                     <span id="brightness-value" style="color: #666; font-size: 14px;">30</span>
                 </div>
+
+                <hr style="margin: 20px 0; border: 0; border-top: 1px solid #e5e7eb;">
+
+                <!-- Color Quality Settings - Requires Restart -->
+                <div style="margin-bottom: 15px;">
+                    <h3 style="font-size: 16px; margin-bottom: 10px; color: #666;">Color Quality (Restart Required)</h3>
+
+                    <div class="form-group">
+                        <label>Contrast/Smoothness (100-400)</label>
+                        <input type="range" id="pwm-lsb-slider" min="100" max="400" value="200" oninput="updatePWMLSBDisplay(this.value)" style="width: 100%; margin-bottom: 5px;">
+                        <span id="pwm-lsb-value" style="color: #666; font-size: 12px;">200 (Lower=Brighter/Harsher, Higher=Softer)</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Color Depth (1-11)</label>
+                        <input type="range" id="pwm-bits-slider" min="1" max="11" value="11" oninput="updatePWMBitsDisplay(this.value)" style="width: 100%; margin-bottom: 5px;">
+                        <span id="pwm-bits-value" style="color: #666; font-size: 12px;">11 bits (Higher=Better colors)</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Refresh Speed (2-6)</label>
+                        <input type="range" id="gpio-slowdown-slider" min="2" max="6" value="4" oninput="updateGPIODisplay(this.value)" style="width: 100%; margin-bottom: 5px;">
+                        <span id="gpio-slowdown-value" style="color: #666; font-size: 12px;">4 (Higher=Less flicker, slower)</span>
+                    </div>
+
+                    <button class="btn" onclick="saveDisplaySettings()" style="background: #10b981; margin-top: 10px;">💾 Save Color Settings</button>
+                    <div id="display-alert" style="margin-top: 10px; display: none;"></div>
+                </div>
+
+                <hr style="margin: 20px 0; border: 0; border-top: 1px solid #e5e7eb;">
+
                 <div class="form-group checkbox-group">
                     <input type="checkbox" id="rotation-enabled" checked onchange="updateConfig()">
                     <label for="rotation-enabled">Auto-rotate display</label>
@@ -386,11 +419,33 @@
             try {
                 const response = await fetch('/api/config');
                 config = await response.json();
-                document.getElementById('favorite-team').value = config.teams?.favorite || 'NYY';
-                document.getElementById('brightness').value = config.display?.brightness || 60;
                 document.getElementById('rotation-enabled').checked = config.display?.rotation_enabled ?? true;
             } catch (error) {
                 console.error('Error loading config:', error);
+            }
+        }
+
+        // Load display settings
+        async function loadDisplaySettings() {
+            try {
+                const response = await fetch('/api/display/settings');
+                const settings = await response.json();
+
+                // Set brightness slider
+                document.getElementById('brightness-slider').value = settings.brightness || 30;
+                document.getElementById('brightness-value').textContent = settings.brightness || 30;
+
+                // Set color quality sliders
+                document.getElementById('pwm-lsb-slider').value = settings.pwm_lsb_nanoseconds || 200;
+                updatePWMLSBDisplay(settings.pwm_lsb_nanoseconds || 200);
+
+                document.getElementById('pwm-bits-slider').value = settings.pwm_bits || 11;
+                updatePWMBitsDisplay(settings.pwm_bits || 11);
+
+                document.getElementById('gpio-slowdown-slider').value = settings.gpio_slowdown || 4;
+                updateGPIODisplay(settings.gpio_slowdown || 4);
+            } catch (error) {
+                console.error('Error loading display settings:', error);
             }
         }
 
@@ -474,6 +529,56 @@
             }
         }
 
+        // Update display value helpers
+        function updatePWMLSBDisplay(value) {
+            const desc = value < 150 ? "Brighter/Harsher" : value < 250 ? "Balanced" : "Softer/Smoother";
+            document.getElementById('pwm-lsb-value').textContent = `${value} (${desc})`;
+        }
+
+        function updatePWMBitsDisplay(value) {
+            const desc = value < 8 ? "Lower quality" : value < 10 ? "Good" : "Best quality";
+            document.getElementById('pwm-bits-value').textContent = `${value} bits (${desc})`;
+        }
+
+        function updateGPIODisplay(value) {
+            const desc = value <= 3 ? "Faster/More flicker" : value == 4 ? "Balanced" : "Slower/Less flicker";
+            document.getElementById('gpio-slowdown-value').textContent = `${value} (${desc})`;
+        }
+
+        // Save display settings
+        async function saveDisplaySettings() {
+            const pwmLSB = parseInt(document.getElementById('pwm-lsb-slider').value);
+            const pwmBits = parseInt(document.getElementById('pwm-bits-slider').value);
+            const gpioSlowdown = parseInt(document.getElementById('gpio-slowdown-slider').value);
+
+            try {
+                const response = await fetch('/api/display/settings', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        pwm_lsb_nanoseconds: pwmLSB,
+                        pwm_bits: pwmBits,
+                        gpio_slowdown: gpioSlowdown
+                    })
+                });
+                const data = await response.json();
+                showDisplayAlert('Settings saved! Click "Restart Scoreboard" to apply.', 'success');
+            } catch (error) {
+                showDisplayAlert('Error saving settings', 'error');
+            }
+        }
+
+        // Show display alert
+        function showDisplayAlert(message, type) {
+            const alert = document.getElementById('display-alert');
+            alert.textContent = message;
+            alert.className = `alert alert-${type}`;
+            alert.style.display = 'block';
+            setTimeout(() => {
+                alert.style.display = 'none';
+            }, 5000);
+        }
+
         // Restart scoreboard
         async function restartScoreboard() {
             if (!confirm('Are you sure you want to restart the scoreboard? This will take a few seconds.')) {
@@ -494,6 +599,7 @@
 
         // Initialize
         loadConfig();
+        loadDisplaySettings();
         loadTeams();
         fetchStatus();
         fetchGames();

@@ -112,6 +112,19 @@ async def get_status():
     return {"running": False}
 
 
+@app.get("/api/display/settings")
+async def get_display_settings():
+    """Get current display settings from environment."""
+    import os
+
+    return {
+        "pwm_lsb_nanoseconds": int(os.getenv('LED_PWM_LSB_NANOSECONDS', 200)),
+        "pwm_bits": int(os.getenv('LED_PWM_BITS', 11)),
+        "gpio_slowdown": int(os.getenv('LED_GPIO_SLOWDOWN', 4)),
+        "brightness": int(os.getenv('LED_BRIGHTNESS', 30))
+    }
+
+
 @app.post("/api/brightness")
 async def set_brightness(data: dict):
     """Set LED brightness in real-time."""
@@ -127,6 +140,56 @@ async def set_brightness(data: dict):
             raise HTTPException(status_code=500, detail=f"Failed to set brightness: {str(e)}")
 
     raise HTTPException(status_code=500, detail="Scoreboard not running")
+
+
+@app.post("/api/display/settings")
+async def set_display_settings(data: dict):
+    """Set display quality settings in real-time (requires restart for some settings)."""
+    import os
+
+    # These settings require restart
+    pwm_lsb = data.get("pwm_lsb_nanoseconds")
+    pwm_bits = data.get("pwm_bits")
+    gpio_slowdown = data.get("gpio_slowdown")
+
+    # Update environment variables (will take effect on next restart)
+    env_file = os.path.join(os.path.dirname(__file__), '..', '..', '.env')
+
+    try:
+        # Read existing .env
+        env_vars = {}
+        if os.path.exists(env_file):
+            with open(env_file, 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('#') and '=' in line:
+                        key, value = line.split('=', 1)
+                        env_vars[key] = value
+
+        # Update values
+        if pwm_lsb is not None:
+            env_vars['LED_PWM_LSB_NANOSECONDS'] = str(pwm_lsb)
+        if pwm_bits is not None:
+            env_vars['LED_PWM_BITS'] = str(pwm_bits)
+        if gpio_slowdown is not None:
+            env_vars['LED_GPIO_SLOWDOWN'] = str(gpio_slowdown)
+
+        # Write back to .env
+        with open(env_file, 'w') as f:
+            for key, value in env_vars.items():
+                f.write(f"{key}={value}\n")
+
+        return {
+            "status": "success",
+            "message": "Settings saved. Restart scoreboard to apply changes.",
+            "settings": {
+                "pwm_lsb_nanoseconds": pwm_lsb,
+                "pwm_bits": pwm_bits,
+                "gpio_slowdown": gpio_slowdown
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save settings: {str(e)}")
 
 
 @app.post("/api/restart")
