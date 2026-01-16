@@ -20,8 +20,9 @@ class LiveGameRenderer(BaseRenderer):
         self.live_pulse = PulseAnimation(duration=2.0)
         self.live_pulse.start()
 
-        # Load smaller font for pitcher/batter info
-        self.small_font = canvas.load_font("5x7.bdf")
+        # Load fonts
+        self.small_font = canvas.load_font("5x7.bdf")  # Small font for pitcher/batter info
+        self.font = canvas.load_font("7x13.bdf")  # Regular font for inning number
 
     def render(self, game: LiveGameData):
         """Render live game display."""
@@ -134,11 +135,14 @@ class LiveGameRenderer(BaseRenderer):
         # INNING DISPLAY: Show inning number with arrow (top/bottom) in center
         if game.inning:
             inning_num = str(game.inning.num)
-            # Use ▲ for top, ▼ for bottom
+            # Arrow color: green for top, red for bottom
             arrow = "▲" if game.inning.half == "top" else "▼"
-            inning_text = f"{arrow}{inning_num}"
-            # Position in center between pitcher/batter and bases
-            self.canvas.draw_text(58, 34, inning_text, *Colors.CYAN, font=self.small_font)
+            arrow_color = Colors.LIVE_GREEN if game.inning.half == "top" else Colors.RED
+
+            # Draw arrow and number separately with different colors, aligned with ERA line
+            # Arrow uses small font, number uses larger font
+            self.canvas.draw_text(50, 43, arrow, *arrow_color, font=self.small_font)
+            self.canvas.draw_text(58, 43, inning_num, *Colors.WHITE, font=self.font)
 
         # MIDDLE SECTION: P: [pitcher name] with ERA below
         if game.current_pitcher:
