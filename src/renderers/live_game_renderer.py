@@ -142,16 +142,23 @@ class LiveGameRenderer(BaseRenderer):
                 era_text = f"E: {game.current_pitcher.era}"
                 self.canvas.draw_text(2, 43, era_text, *Colors.YELLOW, font=self.small_font)
 
-            # Add pitch type and velocity next to ERA
-            if game.last_pitch_type or game.last_pitch_speed:
-                pitch_info = ""
-                if game.last_pitch_type:
-                    pitch_info = game.last_pitch_type[:2].upper()  # Abbreviate pitch type (e.g., FF, SL)
-                if game.last_pitch_speed:
-                    speed = f"{int(game.last_pitch_speed)}"
-                    pitch_info = f"{pitch_info} {speed}" if pitch_info else speed
-                if pitch_info:
-                    self.canvas.draw_text(45, 43, pitch_info, *Colors.CYAN, font=self.small_font)
+            # Show either pitch count (before pitch) or pitch result (after pitch)
+            if game.show_pitch_result:
+                # Show pitch type and velocity after pitch is thrown
+                if game.last_pitch_type or game.last_pitch_speed:
+                    pitch_info = ""
+                    if game.last_pitch_type:
+                        pitch_info = game.last_pitch_type[:2].upper()  # Abbreviate pitch type (e.g., FF, SL)
+                    if game.last_pitch_speed:
+                        speed = f"{int(game.last_pitch_speed)}mph"
+                        pitch_info = f"{pitch_info} {speed}" if pitch_info else speed
+                    if pitch_info:
+                        self.canvas.draw_text(45, 43, pitch_info, *Colors.CYAN, font=self.small_font)
+            else:
+                # Show pitch count before pitch is thrown
+                if game.pitch_count is not None:
+                    pitch_count_text = f"P{game.pitch_count}"
+                    self.canvas.draw_text(45, 43, pitch_count_text, *Colors.WHITE, font=self.small_font)
 
         # Baseball diamond - rotated squares (diamonds) on right
         if self.config.modes.live_game.show_runners:

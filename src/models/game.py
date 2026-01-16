@@ -86,6 +86,8 @@ class LiveGameData(BaseModel):
     probable_pitcher_away: Optional[str] = None
     last_pitch_type: Optional[str] = None
     last_pitch_speed: Optional[float] = None
+    pitch_count: Optional[int] = None  # Current pitch count
+    show_pitch_result: bool = False  # Toggle between showing pitch count vs pitch result
 
 
 class StandingsEntry(BaseModel):

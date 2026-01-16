@@ -193,6 +193,8 @@ class GameSimulator:
         pitch_types = ["FF", "SL", "CH", "CU", "SI", "FC", "KC"]
         last_pitch_type = random.choice(pitch_types) if state == GameState.LIVE else None
         last_pitch_speed = round(random.uniform(88.0, 99.0), 1) if state == GameState.LIVE else None
+        pitch_count = random.randint(5, 35) if state == GameState.LIVE else None
+        show_pitch_result = False  # Start with showing pitch count
 
         return LiveGameData(
             game_id=game_id,
@@ -209,7 +211,9 @@ class GameSimulator:
             probable_pitcher_home=prob_home,
             probable_pitcher_away=prob_away,
             last_pitch_type=last_pitch_type,
-            last_pitch_speed=last_pitch_speed
+            last_pitch_speed=last_pitch_speed,
+            pitch_count=pitch_count,
+            show_pitch_result=show_pitch_result
         )
 
     def _get_ordinal(self, num: int) -> str:
@@ -258,14 +262,26 @@ class GameSimulator:
                     rbi=random.randint(1, 2)
                 )
 
-            elif action < 0.35:  # 20% chance - count change
+                # Reset pitch count for new batter after scoring play
+                game.pitch_count = 0
+                game.show_pitch_result = False
+
+            elif action < 0.35:  # 20% chance - count change (pitch thrown)
                 game.count.balls = random.randint(0, 3)
                 game.count.strikes = random.randint(0, 2)
 
-                # Update pitch info
+                # Update pitch info and increment pitch count
                 pitch_types = ["FF", "SL", "CH", "CU", "SI", "FC", "KC"]
                 game.last_pitch_type = random.choice(pitch_types)
                 game.last_pitch_speed = round(random.uniform(88.0, 99.0), 1)
+                game.pitch_count = (game.pitch_count or 0) + 1
+
+                # Show pitch result after pitch is thrown
+                game.show_pitch_result = True
+
+            elif action < 0.40:  # 5% chance - pitcher ready (between pitches)
+                # Toggle back to showing pitch count
+                game.show_pitch_result = False
 
             elif action < 0.45:  # 10% chance - runner change
                 game.runners.first = random.choice(self.player_names) if random.random() > 0.5 else None
@@ -274,6 +290,11 @@ class GameSimulator:
 
             elif action < 0.55:  # 10% chance - out recorded
                 game.count.outs = min(game.count.outs + 1, 2)
+
+                # New batter when out is recorded, reset pitch count
+                game.pitch_count = 0
+                game.show_pitch_result = False
+
                 if game.count.outs == 2:
                     # Inning change
                     game.count.outs = 0
