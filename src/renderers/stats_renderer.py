@@ -7,6 +7,11 @@ from ..models.game import LiveGameData
 class StatsRenderer(BaseRenderer):
     """Renders detailed player statistics."""
 
+    def __init__(self, canvas, config):
+        super().__init__(canvas, config)
+        # Load smaller font for better text spacing
+        self.small_font = canvas.load_font("5x7.bdf")
+
     def render(self, game: LiveGameData):
         """Render detailed stats for current game."""
         self.clear()
@@ -16,35 +21,35 @@ class StatsRenderer(BaseRenderer):
 
         # Current matchup
         if game.current_batter and game.current_pitcher:
-            # Batter section
-            self.canvas.draw_text(5, 20, "BATTER", *Colors.YELLOW)
-            batter_name = game.current_batter.name.split()[-1][:12]
-            self.canvas.draw_text(5, 30, batter_name, *Colors.WHITE)
+            # Batter section - using smaller font
+            self.canvas.draw_text(3, 18, "BATTER", *Colors.YELLOW, font=self.small_font)
+            batter_name = game.current_batter.name.split()[-1][:15]
+            self.canvas.draw_text(3, 27, batter_name, *Colors.WHITE, font=self.small_font)
 
-            y = 40
+            y = 36
             if game.current_batter.avg:
-                self.canvas.draw_text(5, y, f"AVG: {game.current_batter.avg}", *Colors.WHITE)
-                y += 10
+                self.canvas.draw_text(3, y, f"AVG: {game.current_batter.avg}", *Colors.WHITE, font=self.small_font)
+                y += 9
             if game.current_batter.hr is not None:
-                self.canvas.draw_text(5, y, f"HR: {game.current_batter.hr}", *Colors.WHITE)
-                y += 10
+                self.canvas.draw_text(3, y, f"HR: {game.current_batter.hr}", *Colors.WHITE, font=self.small_font)
+                y += 9
             if game.current_batter.rbi is not None:
-                self.canvas.draw_text(5, y, f"RBI: {game.current_batter.rbi}", *Colors.WHITE)
+                self.canvas.draw_text(3, y, f"RBI: {game.current_batter.rbi}", *Colors.WHITE, font=self.small_font)
 
-            # Pitcher section
-            self.canvas.draw_text(70, 20, "PITCHER", *Colors.ORANGE)
-            pitcher_name = game.current_pitcher.name.split()[-1][:12]
-            self.canvas.draw_text(70, 30, pitcher_name, *Colors.WHITE)
+            # Pitcher section - using smaller font
+            self.canvas.draw_text(68, 18, "PITCHER", *Colors.ORANGE, font=self.small_font)
+            pitcher_name = game.current_pitcher.name.split()[-1][:15]
+            self.canvas.draw_text(68, 27, pitcher_name, *Colors.WHITE, font=self.small_font)
 
-            y = 40
+            y = 36
             if game.current_pitcher.era:
-                self.canvas.draw_text(70, y, f"ERA: {game.current_pitcher.era}", *Colors.WHITE)
-                y += 10
+                self.canvas.draw_text(68, y, f"ERA: {game.current_pitcher.era}", *Colors.WHITE, font=self.small_font)
+                y += 9
             if game.current_pitcher.so is not None:
-                self.canvas.draw_text(70, y, f"SO: {game.current_pitcher.so}", *Colors.WHITE)
+                self.canvas.draw_text(68, y, f"SO: {game.current_pitcher.so}", *Colors.WHITE, font=self.small_font)
 
         else:
             # No active matchup
-            self.canvas.draw_text(10, 30, "No active at-bat", *Colors.FINAL_GRAY)
+            self.canvas.draw_text(10, 30, "No active at-bat", *Colors.FINAL_GRAY, font=self.small_font)
 
         self.canvas.swap()
