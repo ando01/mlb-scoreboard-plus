@@ -20,9 +20,8 @@ class LiveGameRenderer(BaseRenderer):
         self.live_pulse = PulseAnimation(duration=2.0)
         self.live_pulse.start()
 
-        # Load fonts
-        self.small_font = canvas.load_font("5x7.bdf")  # Small font for pitcher/batter info
-        self.font = canvas.load_font("7x13.bdf")  # Regular font for inning number
+        # Load smaller font for pitcher/batter info
+        self.small_font = canvas.load_font("5x7.bdf")
 
     def render(self, game: LiveGameData):
         """Render live game display."""
@@ -132,19 +131,7 @@ class LiveGameRenderer(BaseRenderer):
         self.canvas.draw_text(96, 23, home_h, *Colors.WHITE)
         self.canvas.draw_text(114, 23, home_e, *Colors.WHITE)
 
-        # INNING DISPLAY: Show inning number with arrow (top/bottom) in center
-        if game.inning:
-            inning_num = str(game.inning.num)
-            # Arrow color: green for top, red for bottom
-            arrow = "▲" if game.inning.half == "top" else "▼"
-            arrow_color = Colors.LIVE_GREEN if game.inning.half == "top" else Colors.RED
-
-            # Draw arrow and number separately with different colors, aligned with ERA line
-            # Arrow uses small font, number uses larger font
-            self.canvas.draw_text(50, 43, arrow, *arrow_color, font=self.small_font)
-            self.canvas.draw_text(58, 43, inning_num, *Colors.WHITE, font=self.font)
-
-        # MIDDLE SECTION: P: [pitcher name] with ERA below
+        # MIDDLE SECTION: P: [pitcher name] with ERA and pitch info below
         if game.current_pitcher:
             pitcher_name = game.current_pitcher.name.split()[-1][:8]  # Last name
             pitcher_text = f"P:{pitcher_name}"
@@ -154,6 +141,17 @@ class LiveGameRenderer(BaseRenderer):
             if game.current_pitcher.era:
                 era_text = f"E: {game.current_pitcher.era}"
                 self.canvas.draw_text(2, 43, era_text, *Colors.YELLOW, font=self.small_font)
+
+            # Add pitch type and velocity next to ERA
+            if game.last_pitch_type or game.last_pitch_speed:
+                pitch_info = ""
+                if game.last_pitch_type:
+                    pitch_info = game.last_pitch_type[:2].upper()  # Abbreviate pitch type (e.g., FF, SL)
+                if game.last_pitch_speed:
+                    speed = f"{int(game.last_pitch_speed)}"
+                    pitch_info = f"{pitch_info} {speed}" if pitch_info else speed
+                if pitch_info:
+                    self.canvas.draw_text(45, 43, pitch_info, *Colors.CYAN, font=self.small_font)
 
         # Baseball diamond - rotated squares (diamonds) on right
         if self.config.modes.live_game.show_runners:
@@ -217,6 +215,17 @@ class LiveGameRenderer(BaseRenderer):
             if game.current_batter.avg:
                 avg_text = f"BA: {game.current_batter.avg}"
                 self.canvas.draw_text(2, 63, avg_text, *Colors.YELLOW, font=self.small_font)
+
+            # INNING DISPLAY: Show inning number with arrow near outs
+            if game.inning:
+                inning_num = str(game.inning.num)
+                # Arrow color: green for top, red for bottom
+                arrow = "▲" if game.inning.half == "top" else "▼"
+                arrow_color = Colors.LIVE_GREEN if game.inning.half == "top" else Colors.RED
+
+                # Draw arrow and number together (smaller font), positioned near outs
+                inning_text = f"{arrow}{inning_num}"
+                self.canvas.draw_text(68, 54, inning_text, *arrow_color, font=self.small_font)
 
             # Outs as smaller squares on right
             if self.config.modes.live_game.show_outs:

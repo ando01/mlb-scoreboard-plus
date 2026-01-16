@@ -84,6 +84,8 @@ class LiveGameData(BaseModel):
     last_play: Optional[Play] = None
     probable_pitcher_home: Optional[str] = None
     probable_pitcher_away: Optional[str] = None
+    last_pitch_type: Optional[str] = None
+    last_pitch_speed: Optional[float] = None
 
 
 class StandingsEntry(BaseModel):
