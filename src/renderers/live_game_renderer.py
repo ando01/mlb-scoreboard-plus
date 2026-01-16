@@ -131,22 +131,22 @@ class LiveGameRenderer(BaseRenderer):
         self.canvas.draw_text(96, 23, home_h, *Colors.WHITE)
         self.canvas.draw_text(114, 23, home_e, *Colors.WHITE)
 
-        # MIDDLE SECTION: P: [pitcher name] (ERA)
+        # MIDDLE SECTION: P: [pitcher name] with ERA below
         if game.current_pitcher:
             pitcher_name = game.current_pitcher.name.split()[-1][:8]  # Last name
             pitcher_text = f"P:{pitcher_name}"
-            self.canvas.draw_text(2, 39, pitcher_text, *Colors.WHITE, font=self.small_font)
+            self.canvas.draw_text(2, 34, pitcher_text, *Colors.WHITE, font=self.small_font)
 
-            # Add ERA if available in parentheses
+            # Add ERA underneath if available
             if game.current_pitcher.era:
-                era_text = f"({game.current_pitcher.era})"
-                self.canvas.draw_text(62, 39, era_text, *Colors.YELLOW, font=self.small_font)
+                era_text = f"E: {game.current_pitcher.era}"
+                self.canvas.draw_text(2, 43, era_text, *Colors.YELLOW, font=self.small_font)
 
         # Baseball diamond - rotated squares (diamonds) on right
         if self.config.modes.live_game.show_runners:
             base_x = 108
-            base_y = 30
-            diamond_size = 4  # Half-width of diamond
+            base_y = 32
+            diamond_size = 6  # Half-width of diamond (increased from 4)
 
             # Draw diamonds (rotated 45 degrees) for each base
             # Second base (top center)
@@ -164,8 +164,8 @@ class LiveGameRenderer(BaseRenderer):
                 self.canvas.draw_line(base_x - diamond_size, base_y, base_x, base_y - diamond_size, *Colors.WHITE)
 
             # Third base (left)
-            third_x = base_x - 9
-            third_y = base_y + 6
+            third_x = base_x - 11
+            third_y = base_y + 8
             if game.runners.third:
                 for dy in range(-diamond_size, diamond_size + 1):
                     width = diamond_size - abs(dy)
@@ -178,8 +178,8 @@ class LiveGameRenderer(BaseRenderer):
                 self.canvas.draw_line(third_x - diamond_size, third_y, third_x, third_y - diamond_size, *Colors.WHITE)
 
             # First base (right)
-            first_x = base_x + 9
-            first_y = base_y + 6
+            first_x = base_x + 11
+            first_y = base_y + 8
             if game.runners.first:
                 for dy in range(-diamond_size, diamond_size + 1):
                     width = diamond_size - abs(dy)
@@ -191,31 +191,28 @@ class LiveGameRenderer(BaseRenderer):
                 self.canvas.draw_line(first_x, first_y + diamond_size, first_x - diamond_size, first_y, *Colors.WHITE)
                 self.canvas.draw_line(first_x - diamond_size, first_y, first_x, first_y - diamond_size, *Colors.WHITE)
 
-        # BOTTOM SECTION: B: [batter] (AVG) [count] with out squares
+        # BOTTOM SECTION: B: [batter] [count] with BA below and out squares
         if game.current_batter:
             batter_name = game.current_batter.name.split()[-1][:6]  # Last name truncated
+            count_text = f"{game.count.balls}-{game.count.strikes}"
 
-            # Batter name
-            ab_text = f"B:{batter_name}"
+            # Batter name and count on same line
+            ab_text = f"B:{batter_name} {count_text}"
             self.canvas.draw_text(2, 54, ab_text, *Colors.WHITE, font=self.small_font)
 
-            # Add batting average if available in parentheses
+            # Add batting average underneath if available
             if game.current_batter.avg:
-                avg_text = f"({game.current_batter.avg})"
-                self.canvas.draw_text(48, 54, avg_text, *Colors.YELLOW, font=self.small_font)
+                avg_text = f"BA: {game.current_batter.avg}"
+                self.canvas.draw_text(2, 63, avg_text, *Colors.YELLOW, font=self.small_font)
 
-            # Count positioned to the right of average
-            count_text = f"{game.count.balls}-{game.count.strikes}"
-            self.canvas.draw_text(78, 54, count_text, *Colors.WHITE, font=self.small_font)
-
-            # Outs as small squares on right
+            # Outs as smaller squares on right
             if self.config.modes.live_game.show_outs:
-                out_x = 95
+                out_x = 100
                 for i in range(3):
                     if i < game.count.outs:
-                        self.canvas.draw_rect(out_x + (i * 8), 49, 5, 5, *Colors.WHITE, filled=True)
+                        self.canvas.draw_rect(out_x + (i * 7), 52, 4, 4, *Colors.WHITE, filled=True)
                     else:
-                        self.canvas.draw_rect(out_x + (i * 8), 49, 5, 5, *Colors.WHITE, filled=False)
+                        self.canvas.draw_rect(out_x + (i * 7), 52, 4, 4, *Colors.WHITE, filled=False)
 
     def _render_final(self, game: LiveGameData):
         """Render final score."""
