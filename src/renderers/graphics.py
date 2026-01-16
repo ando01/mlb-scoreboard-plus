@@ -14,19 +14,41 @@ class Colors:
     CYAN = (0, 255, 255)
     MAGENTA = (255, 0, 255)
 
-    # Team colors dictionary - actual MLB team colors
+    # Team colors dictionary - all 30 MLB teams
     TEAM_COLORS = {
+        # AL East
         'NYY': (12, 35, 64),      # Yankees - Navy
         'BOS': (189, 48, 57),     # Red Sox - Red
-        'LAD': (0, 90, 156),      # Dodgers - Blue
-        'SFG': (253, 90, 30),     # Giants - Orange
-        'HOU': (235, 110, 31),    # Astros - Orange
-        'ATL': (206, 17, 65),     # Braves - Red
-        'CHC': (14, 51, 134),     # Cubs - Blue
-        'STL': (196, 30, 58),     # Cardinals - Red
         'TB': (9, 44, 92),        # Rays - Navy
         'TOR': (19, 74, 142),     # Blue Jays - Blue
         'BAL': (223, 70, 1),      # Orioles - Orange
+        # AL Central
+        'CLE': (0, 56, 93),       # Guardians - Navy
+        'MIN': (0, 43, 92),       # Twins - Navy
+        'CHW': (39, 37, 31),      # White Sox - Black
+        'DET': (12, 35, 64),      # Tigers - Navy
+        'KC': (0, 70, 135),       # Royals - Blue
+        # AL West
+        'HOU': (235, 110, 31),    # Astros - Orange
+        'TEX': (0, 50, 120),      # Rangers - Blue
+        'SEA': (0, 92, 92),       # Mariners - Teal
+        'LAA': (186, 0, 33),      # Angels - Red
+        'OAK': (0, 56, 49),       # Athletics - Green
+        # NL East
+        'ATL': (206, 17, 65),     # Braves - Red
+        'PHI': (232, 24, 40),     # Phillies - Red
+        'NYM': (0, 45, 114),      # Mets - Blue
+        'MIA': (0, 163, 224),     # Marlins - Blue
+        'WSH': (171, 0, 3),       # Nationals - Red
+        # NL Central
+        'MIL': (18, 40, 75),      # Brewers - Navy
+        'STL': (196, 30, 58),     # Cardinals - Red
+        'CHC': (14, 51, 134),     # Cubs - Blue
+        'CIN': (198, 1, 31),      # Reds - Red
+        'PIT': (39, 37, 31),      # Pirates - Black
+        # NL West
+        'LAD': (0, 90, 156),      # Dodgers - Blue
+        'SFG': (253, 90, 30),     # Giants - Orange
         'SD': (47, 36, 29),       # Padres - Brown
         'ARI': (167, 25, 48),     # D-backs - Red
         'COL': (51, 0, 111),      # Rockies - Purple
