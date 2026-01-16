@@ -20,6 +20,9 @@ class LiveGameRenderer(BaseRenderer):
         self.live_pulse = PulseAnimation(duration=2.0)
         self.live_pulse.start()
 
+        # Load smaller font for pitcher/batter info
+        self.small_font = canvas.load_font("5x7.bdf")
+
     def render(self, game: LiveGameData):
         """Render live game display."""
         self.clear()
@@ -121,7 +124,7 @@ class LiveGameRenderer(BaseRenderer):
         # MIDDLE SECTION: P: [pitcher name]
         if game.current_pitcher:
             pitcher_name = game.current_pitcher.name.split()[-1][:8]  # Last name
-            self.canvas.draw_text(2, 36, f"P:{pitcher_name}", *Colors.WHITE)
+            self.canvas.draw_text(2, 39, f"P:{pitcher_name}", *Colors.WHITE, font=self.small_font)
 
         # Baseball diamond - rotated squares (diamonds) on right
         if self.config.modes.live_game.show_runners:
@@ -178,16 +181,16 @@ class LiveGameRenderer(BaseRenderer):
             count_text = f"{game.count.balls}-{game.count.strikes}"
 
             ab_text = f"B:{batter_name} {count_text}"
-            self.canvas.draw_text(2, 49, ab_text, *Colors.WHITE)
+            self.canvas.draw_text(2, 54, ab_text, *Colors.WHITE, font=self.small_font)
 
             # Outs as small squares on right
             if self.config.modes.live_game.show_outs:
                 out_x = 95
                 for i in range(3):
                     if i < game.count.outs:
-                        self.canvas.draw_rect(out_x + (i * 8), 43, 5, 5, *Colors.WHITE, filled=True)
+                        self.canvas.draw_rect(out_x + (i * 8), 49, 5, 5, *Colors.WHITE, filled=True)
                     else:
-                        self.canvas.draw_rect(out_x + (i * 8), 43, 5, 5, *Colors.WHITE, filled=False)
+                        self.canvas.draw_rect(out_x + (i * 8), 49, 5, 5, *Colors.WHITE, filled=False)
 
     def _render_final(self, game: LiveGameData):
         """Render final score."""

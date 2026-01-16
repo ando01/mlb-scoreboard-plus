@@ -77,6 +77,31 @@ class Canvas:
         """Clear the canvas."""
         self._canvas.Clear()
 
+    def load_font(self, font_name: str = "7x13.bdf"):
+        """Load a specific BDF font."""
+        if self._dev_mode:
+            return None
+
+        try:
+            from rgbmatrix import graphics
+            font = graphics.Font()
+            username = os.environ.get('SUDO_USER', os.environ.get('USER', 'pi'))
+            font_paths = [
+                f"/home/{username}/rpi-rgb-led-matrix/fonts/{font_name}",
+                f"/home/{username}/mlb-scoreboard-plus/rpi-rgb-led-matrix/fonts/{font_name}",
+                f"/usr/local/share/fonts/{font_name}",
+            ]
+            for path in font_paths:
+                try:
+                    if os.path.exists(path):
+                        font.LoadFont(path)
+                        return font
+                except Exception:
+                    continue
+        except ImportError:
+            pass
+        return None
+
     def draw_text(self, x: int, y: int, text: str, r: int, g: int, b: int, font=None):
         """Draw text on canvas."""
         if not self._dev_mode and hasattr(self._canvas, 'SetPixel'):
