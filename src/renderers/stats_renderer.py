@@ -16,17 +16,17 @@ class StatsRenderer(BaseRenderer):
         """Render detailed stats for current game."""
         self.clear()
 
-        # Title
-        self.canvas.draw_text(5, 8, "STATS", *Colors.CYAN)
+        # Title - using small font and moved down to prevent rolloff
+        self.canvas.draw_text(3, 10, "STATS", *Colors.CYAN, font=self.small_font)
 
         # Current matchup
         if game.current_batter and game.current_pitcher:
             # Batter section - using smaller font
-            self.canvas.draw_text(3, 18, "BATTER", *Colors.YELLOW, font=self.small_font)
+            self.canvas.draw_text(3, 20, "BATTER", *Colors.YELLOW, font=self.small_font)
             batter_name = game.current_batter.name.split()[-1][:15]
-            self.canvas.draw_text(3, 27, batter_name, *Colors.WHITE, font=self.small_font)
+            self.canvas.draw_text(3, 29, batter_name, *Colors.WHITE, font=self.small_font)
 
-            y = 36
+            y = 38
             if game.current_batter.avg:
                 self.canvas.draw_text(3, y, f"AVG: {game.current_batter.avg}", *Colors.WHITE, font=self.small_font)
                 y += 9
@@ -37,11 +37,11 @@ class StatsRenderer(BaseRenderer):
                 self.canvas.draw_text(3, y, f"RBI: {game.current_batter.rbi}", *Colors.WHITE, font=self.small_font)
 
             # Pitcher section - using smaller font
-            self.canvas.draw_text(68, 18, "PITCHER", *Colors.ORANGE, font=self.small_font)
+            self.canvas.draw_text(68, 20, "PITCHER", *Colors.ORANGE, font=self.small_font)
             pitcher_name = game.current_pitcher.name.split()[-1][:15]
-            self.canvas.draw_text(68, 27, pitcher_name, *Colors.WHITE, font=self.small_font)
+            self.canvas.draw_text(68, 29, pitcher_name, *Colors.WHITE, font=self.small_font)
 
-            y = 36
+            y = 38
             if game.current_pitcher.era:
                 self.canvas.draw_text(68, y, f"ERA: {game.current_pitcher.era}", *Colors.WHITE, font=self.small_font)
                 y += 9
@@ -50,6 +50,6 @@ class StatsRenderer(BaseRenderer):
 
         else:
             # No active matchup
-            self.canvas.draw_text(10, 30, "No active at-bat", *Colors.FINAL_GRAY, font=self.small_font)
+            self.canvas.draw_text(10, 32, "No active at-bat", *Colors.FINAL_GRAY, font=self.small_font)
 
         self.canvas.swap()
