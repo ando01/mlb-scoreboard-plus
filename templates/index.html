@@ -48,6 +48,48 @@
             margin-bottom: 20px;
         }
 
+        /* Mobile layout adjustments */
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .card.display-mode {
+                order: 10; /* Move to bottom on mobile */
+            }
+        }
+
+        /* Collapsible section */
+        .collapsible-header {
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+        }
+
+        .collapsible-header:hover {
+            opacity: 0.8;
+        }
+
+        .collapse-icon {
+            font-size: 20px;
+            transition: transform 0.3s;
+        }
+
+        .collapse-icon.collapsed {
+            transform: rotate(-90deg);
+        }
+
+        .collapsible-content {
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+
+        .collapsible-content.collapsed {
+            max-height: 0 !important;
+        }
+
         .card {
             background: white;
             padding: 25px;
@@ -234,12 +276,25 @@
                 </div>
             </div>
 
-            <!-- Display Mode Card -->
+            <!-- Season Mode Card -->
             <div class="card">
-                <h2>Display Mode</h2>
-                <button class="btn" onclick="setMode('live_game')">Live Game</button>
-                <button class="btn" onclick="setMode('detailed_stats')">Detailed Stats</button>
-                <button class="btn" onclick="setMode('standings')">Standings</button>
+                <h2>Season Mode</h2>
+                <button class="btn" onclick="setSeasonMode('on')" style="background: #10b981;">⚾ On-Season Mode</button>
+                <button class="btn" onclick="setSeasonMode('off')" style="background: #f59e0b;">📰 Off-Season Mode (News)</button>
+                <div id="season-mode-alert" style="margin-top: 10px; display: none;"></div>
+            </div>
+
+            <!-- Display Mode Card (Collapsible, moves to bottom on mobile) -->
+            <div class="card display-mode">
+                <div class="collapsible-header" onclick="toggleCollapse('display-mode')">
+                    <h2>Display Mode</h2>
+                    <span class="collapse-icon" id="display-mode-icon">▼</span>
+                </div>
+                <div class="collapsible-content" id="display-mode-content" style="max-height: 200px;">
+                    <button class="btn" onclick="setMode('live_game')">Live Game</button>
+                    <button class="btn" onclick="setMode('detailed_stats')">Detailed Stats</button>
+                    <button class="btn" onclick="setMode('standings')">Standings</button>
+                </div>
             </div>
 
             <!-- Team Selection Card -->
@@ -594,6 +649,45 @@
             } catch (error) {
                 // Expected - the server is restarting
                 alert('Scoreboard is restarting... Please wait 10-15 seconds and refresh this page.');
+            }
+        }
+
+        // Toggle collapsible section
+        function toggleCollapse(sectionId) {
+            const content = document.getElementById(sectionId + '-content');
+            const icon = document.getElementById(sectionId + '-icon');
+
+            if (content.classList.contains('collapsed')) {
+                content.classList.remove('collapsed');
+                icon.classList.remove('collapsed');
+            } else {
+                content.classList.add('collapsed');
+                icon.classList.add('collapsed');
+            }
+        }
+
+        // Set season mode
+        async function setSeasonMode(mode) {
+            try {
+                const response = await fetch('/api/season-mode', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({mode: mode})
+                });
+                const data = await response.json();
+
+                const alert = document.getElementById('season-mode-alert');
+                alert.textContent = mode === 'on' ? 'On-season mode activated - showing live games' : 'Off-season mode activated - showing MLB news';
+                alert.className = 'alert alert-success';
+                alert.style.display = 'block';
+                setTimeout(() => {
+                    alert.style.display = 'none';
+                }, 3000);
+            } catch (error) {
+                const alert = document.getElementById('season-mode-alert');
+                alert.textContent = 'Error changing season mode';
+                alert.className = 'alert alert-error';
+                alert.style.display = 'block';
             }
         }
 

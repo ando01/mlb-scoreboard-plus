@@ -8,7 +8,8 @@ from datetime import datetime, timedelta
 from .models.config import AppConfig
 from .models.game import GameState
 from .api.data_fetcher import DataFetcher
-from .renderers import Canvas, LiveGameRenderer, StandingsRenderer, StatsRenderer
+from .api.news_fetcher import NewsFetcher
+from .renderers import Canvas, LiveGameRenderer, StandingsRenderer, StatsRenderer, NewsRenderer
 from .utils.config_loader import load_config
 
 logging.basicConfig(
@@ -26,16 +27,20 @@ class Scoreboard:
         # Canvas will read dimensions from environment variables
         self.canvas = Canvas()
         self.data_fetcher = DataFetcher(self.config, simulate=simulate)
+        self.news_fetcher = NewsFetcher()
 
         # Renderers
         self.live_game_renderer = LiveGameRenderer(self.canvas, self.config)
         self.standings_renderer = StandingsRenderer(self.canvas, self.config)
         self.stats_renderer = StatsRenderer(self.canvas, self.config)
+        self.news_renderer = NewsRenderer(self.canvas, self.config)
 
         # State
         self.current_mode = self.config.display.default_mode
+        self.season_mode = "on"  # "on" = on-season, "off" = off-season
         self.current_game_index = 0
         self.last_rotation = datetime.now()
+        self.last_news_fetch = None
         self.running = False
 
     async def start(self):
@@ -45,6 +50,9 @@ class Scoreboard:
 
         # Start data fetcher
         await self.data_fetcher.start()
+
+        # Start news fetcher
+        await self.news_fetcher.__aenter__()
 
         # Main render loop
         try:
@@ -59,6 +67,7 @@ class Scoreboard:
         logger.info("Stopping scoreboard")
         self.running = False
         await self.data_fetcher.stop()
+        await self.news_fetcher.__aexit__(None, None, None)
 
     async def _main_loop(self):
         """Main rendering loop."""
@@ -86,7 +95,9 @@ class Scoreboard:
 
     async def _render_frame(self):
         """Render a single frame."""
-        if self.current_mode == "live_game":
+        if self.current_mode == "news":
+            await self._render_news()
+        elif self.current_mode == "live_game":
             await self._render_live_game()
         elif self.current_mode == "detailed_stats":
             await self._render_stats()
@@ -146,6 +157,18 @@ class Scoreboard:
             return
 
         self.standings_renderer.render(standings)
+
+    async def _render_news(self):
+        """Render news mode (off-season)."""
+        # Fetch news every 5 minutes
+        now = datetime.now()
+        if self.last_news_fetch is None or (now - self.last_news_fetch).total_seconds() > 300:
+            logger.info("Fetching MLB news...")
+            stories = await self.news_fetcher.fetch_all_news()
+            self.news_renderer.set_stories(stories)
+            self.last_news_fetch = now
+
+        self.news_renderer.render()
 
     def _rotate_display(self):
         """Rotate to next display."""

@@ -204,6 +204,33 @@ async def restart_scoreboard():
         raise HTTPException(status_code=500, detail=f"Failed to restart: {str(e)}")
 
 
+@app.post("/api/season-mode")
+async def set_season_mode(data: dict):
+    """Set season mode (on/off-season)."""
+    mode = data.get("mode")
+    if mode not in ["on", "off"]:
+        raise HTTPException(status_code=400, detail="Mode must be 'on' or 'off'")
+
+    if scoreboard_instance:
+        # Set season mode in scoreboard
+        scoreboard_instance.season_mode = mode
+
+        if mode == "off":
+            # Switch to news mode
+            scoreboard_instance.set_mode("news")
+        else:
+            # Switch back to live game mode
+            scoreboard_instance.set_mode("live_game")
+
+        return {
+            "status": "success",
+            "mode": mode,
+            "message": f"Switched to {mode}-season mode"
+        }
+
+    raise HTTPException(status_code=500, detail="Scoreboard not running")
+
+
 @app.get("/api/teams")
 async def get_all_teams():
     """Get list of all MLB teams."""
