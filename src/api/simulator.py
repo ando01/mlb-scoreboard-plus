@@ -189,6 +189,11 @@ class GameSimulator:
 
         start_time = datetime.now() - timedelta(hours=2)
 
+        # Add pitch information for live games
+        pitch_types = ["FF", "SL", "CH", "CU", "SI", "FC", "KC"]
+        last_pitch_type = random.choice(pitch_types) if state == GameState.LIVE else None
+        last_pitch_speed = round(random.uniform(88.0, 99.0), 1) if state == GameState.LIVE else None
+
         return LiveGameData(
             game_id=game_id,
             state=state,
@@ -202,7 +207,9 @@ class GameSimulator:
             current_pitcher=current_pitcher,
             last_play=last_play,
             probable_pitcher_home=prob_home,
-            probable_pitcher_away=prob_away
+            probable_pitcher_away=prob_away,
+            last_pitch_type=last_pitch_type,
+            last_pitch_speed=last_pitch_speed
         )
 
     def _get_ordinal(self, num: int) -> str:
@@ -254,6 +261,11 @@ class GameSimulator:
             elif action < 0.35:  # 20% chance - count change
                 game.count.balls = random.randint(0, 3)
                 game.count.strikes = random.randint(0, 2)
+
+                # Update pitch info
+                pitch_types = ["FF", "SL", "CH", "CU", "SI", "FC", "KC"]
+                game.last_pitch_type = random.choice(pitch_types)
+                game.last_pitch_speed = round(random.uniform(88.0, 99.0), 1)
 
             elif action < 0.45:  # 10% chance - runner change
                 game.runners.first = random.choice(self.player_names) if random.random() > 0.5 else None
