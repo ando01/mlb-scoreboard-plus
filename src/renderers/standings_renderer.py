@@ -40,21 +40,21 @@ class StandingsRenderer(BaseRenderer):
         current_div = division_names[self.current_division_index % len(division_names)]
         teams = divisions[current_div]
 
-        # Title - using smaller font to prevent rolloff
+        # Title - using smaller font, moved higher with room at top
         div_name = current_div[:20]  # Truncate if too long
-        self.canvas.draw_text(2, 12, div_name, *Colors.CYAN, font=self.small_font)
+        self.canvas.draw_text(2, 9, div_name, *Colors.CYAN, font=self.small_font)
 
-        # Column headers - using smaller font with better spacing
-        self.canvas.draw_text(2, 21, "TEAM", *Colors.YELLOW, font=self.small_font)
-        self.canvas.draw_text(40, 21, "W", *Colors.YELLOW, font=self.small_font)
-        self.canvas.draw_text(58, 21, "L", *Colors.YELLOW, font=self.small_font)
-        self.canvas.draw_text(76, 21, "PCT", *Colors.YELLOW, font=self.small_font)
-        self.canvas.draw_text(104, 21, "GB", *Colors.YELLOW, font=self.small_font)
+        # Column headers - moved up to make room for 5 teams
+        self.canvas.draw_text(2, 18, "TEAM", *Colors.YELLOW, font=self.small_font)
+        self.canvas.draw_text(40, 18, "W", *Colors.YELLOW, font=self.small_font)
+        self.canvas.draw_text(58, 18, "L", *Colors.YELLOW, font=self.small_font)
+        self.canvas.draw_text(76, 18, "PCT", *Colors.YELLOW, font=self.small_font)
+        self.canvas.draw_text(104, 18, "GB", *Colors.YELLOW, font=self.small_font)
 
         # Teams (show all 5 teams per division)
-        y = 30
+        y = 27
         for i, team in enumerate(teams[:5]):
-            # Allow all 5 teams to display (5 * 9px spacing = 45px, fits in 64px display)
+            # Allow all 5 teams to display (5 * 8px spacing = 40px total, fits in 64px display)
             if i >= 5:
                 break
 
@@ -73,7 +73,7 @@ class StandingsRenderer(BaseRenderer):
             self.canvas.draw_text(76, y, pct_str, *color, font=self.small_font)
             self.canvas.draw_text(104, y, gb_str, *color, font=self.small_font)
 
-            y += 9
+            y += 8
 
         self.canvas.swap()
 
