@@ -45,10 +45,10 @@ class NewsRenderer(BaseRenderer):
         # Source indicator (second line, left side under title)
         source = story.get('source', 'MLB')
         source_color = Colors.ORANGE if 'Trade Rumors' in source else Colors.LIVE_GREEN
-        source_text = "Rumors" if 'Trade Rumors' in source else "MLB"
+        source_text = "MLBTR" if 'Trade Rumors' in source else "MLB"
         self.canvas.draw_text(2, 18, source_text, *source_color, font=self.small_font)
 
-        # Headline (word-wrapped) - using default font (7x13) for larger text
+        # Headline (word-wrapped) - using small font (5x7)
         headline = story.get('title', 'No headline')
 
         # Word wrap headline to multiple lines
@@ -58,7 +58,7 @@ class NewsRenderer(BaseRenderer):
 
         for word in words:
             test_line = current_line + (" " if current_line else "") + word
-            if len(test_line) * 7 < 128:  # Rough estimate for 7x13 font width
+            if len(test_line) * 5 < 128:  # Rough estimate for 5x7 font width
                 current_line = test_line
             else:
                 if current_line:
@@ -68,11 +68,11 @@ class NewsRenderer(BaseRenderer):
         if current_line:
             lines.append(current_line)
 
-        # Display up to 4 lines of headline (larger font takes more space)
-        y = 30
-        for i, line in enumerate(lines[:4]):
-            self.canvas.draw_text(2, y, line[:18], *Colors.WHITE)  # Using default larger font
-            y += 13
+        # Display up to 5 lines of headline
+        y = 27
+        for i, line in enumerate(lines[:5]):
+            self.canvas.draw_text(2, y, line[:25], *Colors.WHITE, font=self.small_font)
+            y += 9
 
         self.canvas.swap()
 
