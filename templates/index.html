@@ -295,6 +295,12 @@
                     <button class="btn" id="matrix-toggle-btn" onclick="toggleMatrix()" style="background: #ef4444;">🔴 Turn Display OFF</button>
                     <div id="matrix-toggle-alert" style="margin-top: 10px; display: none;"></div>
                 </div>
+
+                <div style="margin-top: 20px; border-top: 1px solid #ddd; padding-top: 15px;">
+                    <label style="display: block; margin-bottom: 8px; color: #333; font-weight: 500; font-size: 14px;">Data Source</label>
+                    <button class="btn" id="simulation-toggle-btn" onclick="toggleSimulation()" style="background: #6b7280;">Live Data</button>
+                    <div id="simulation-toggle-alert" style="margin-top: 10px; display: none;"></div>
+                </div>
             </div>
 
             <!-- Team Selection Card -->
@@ -393,6 +399,19 @@
                     } else {
                         btn.textContent = '🟢 Turn Display ON';
                         btn.style.background = '#10b981';
+                    }
+                }
+
+                // Update simulation toggle button state
+                if (data.simulation_mode !== undefined) {
+                    simulationEnabled = data.simulation_mode;
+                    const simBtn = document.getElementById('simulation-toggle-btn');
+                    if (simulationEnabled) {
+                        simBtn.textContent = 'Simulated Data';
+                        simBtn.style.background = '#f59e0b';
+                    } else {
+                        simBtn.textContent = 'Live Data';
+                        simBtn.style.background = '#6b7280';
                     }
                 }
             } catch (error) {
@@ -711,6 +730,47 @@
 
         // Toggle LED matrix on/off
         let matrixEnabled = true;
+        let simulationEnabled = false;
+
+        async function toggleSimulation() {
+            try {
+                const newState = !simulationEnabled;
+                const response = await fetch('/api/simulation/toggle', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({enabled: newState})
+                });
+                const data = await response.json();
+
+                simulationEnabled = newState;
+                const btn = document.getElementById('simulation-toggle-btn');
+                const alert = document.getElementById('simulation-toggle-alert');
+
+                if (simulationEnabled) {
+                    btn.textContent = 'Simulated Data';
+                    btn.style.background = '#f59e0b';
+                } else {
+                    btn.textContent = 'Live Data';
+                    btn.style.background = '#6b7280';
+                }
+
+                alert.textContent = simulationEnabled ? 'Switched to simulated game data' : 'Switched to live MLB data';
+                alert.className = 'alert alert-success';
+                alert.style.display = 'block';
+                setTimeout(() => {
+                    alert.style.display = 'none';
+                }, 3000);
+
+                // Refresh games list
+                fetchGames();
+            } catch (error) {
+                const alert = document.getElementById('simulation-toggle-alert');
+                alert.textContent = 'Error toggling simulation mode';
+                alert.className = 'alert alert-error';
+                alert.style.display = 'block';
+            }
+        }
+
         async function toggleMatrix() {
             try {
                 const newState = !matrixEnabled;

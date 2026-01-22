@@ -166,3 +166,20 @@ class DataFetcher:
             if game.home_team.abbreviation == fav or game.away_team.abbreviation == fav:
                 return game
         return None
+
+    def set_simulation_mode(self, enabled: bool):
+        """Enable or disable simulation mode at runtime."""
+        if enabled == self.simulate:
+            return  # No change needed
+
+        self.simulate = enabled
+        if enabled:
+            if not self.simulator:
+                self.simulator = GameSimulator()
+            logger.info("Switched to SIMULATION mode")
+        else:
+            logger.info("Switched to LIVE mode")
+
+        # Clear current games to force refresh
+        self.current_games = []
+        self.standings = []

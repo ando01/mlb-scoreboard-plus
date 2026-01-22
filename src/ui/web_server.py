@@ -109,6 +109,7 @@ async def get_status():
             "current_mode": scoreboard_instance.current_mode,
             "season_mode": scoreboard_instance.season_mode,
             "matrix_enabled": scoreboard_instance.matrix_enabled,
+            "simulation_mode": data_fetcher_instance.simulate if data_fetcher_instance else False,
             "games_count": len(data_fetcher_instance.get_games()) if data_fetcher_instance else 0
         }
     return {"running": False}
@@ -253,6 +254,24 @@ async def toggle_matrix(data: dict):
             "status": "success",
             "enabled": enabled,
             "message": f"LED matrix turned {'ON' if enabled else 'OFF'}"
+        }
+
+    raise HTTPException(status_code=500, detail="Scoreboard not running")
+
+
+@app.post("/api/simulation/toggle")
+async def toggle_simulation(data: dict):
+    """Toggle simulation mode on/off."""
+    enabled = data.get("enabled")
+    if enabled is None:
+        raise HTTPException(status_code=400, detail="Enabled state is required")
+
+    if data_fetcher_instance:
+        data_fetcher_instance.set_simulation_mode(enabled)
+        return {
+            "status": "success",
+            "enabled": enabled,
+            "message": f"Simulation mode {'enabled' if enabled else 'disabled'}"
         }
 
     raise HTTPException(status_code=500, detail="Scoreboard not running")
