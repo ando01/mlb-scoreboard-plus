@@ -83,24 +83,25 @@ class LiveGameRenderer(BaseRenderer):
         away_color = Colors.WHITE
         home_color = Colors.WHITE
 
-        self.canvas.draw_text(5, 8, game.away_team.abbreviation, *away_color)
-        self.canvas.draw_text(5, 20, game.home_team.abbreviation, *home_color)
+        self.canvas.draw_text(5, 11, game.away_team.abbreviation, *away_color)
+        self.canvas.draw_text(5, 23, game.home_team.abbreviation, *home_color)
 
         # "vs" separator
-        self.canvas.draw_text(35, 14, "vs", *Colors.FINAL_GRAY)
+        self.canvas.draw_text(35, 17, "vs", *Colors.FINAL_GRAY)
 
-        # Game time
-        time_str = game.start_time.strftime("%I:%M %p")
-        self.canvas.draw_text(5, 35, time_str, *Colors.CYAN)
+        # Game time — convert UTC to local wall-clock time
+        local_start = game.start_time.astimezone()
+        time_str = local_start.strftime("%I:%M %p").lstrip("0")
+        self.canvas.draw_text(5, 38, time_str, *Colors.CYAN)
 
         # Probable pitchers if available
         if game.probable_pitcher_away:
             pitcher_text = game.probable_pitcher_away.split()[-1][:8]  # Last name
-            self.canvas.draw_text(55, 8, f"P: {pitcher_text}", *Colors.YELLOW)
+            self.canvas.draw_text(55, 11, f"P: {pitcher_text}", *Colors.YELLOW)
 
         if game.probable_pitcher_home:
             pitcher_text = game.probable_pitcher_home.split()[-1][:8]
-            self.canvas.draw_text(55, 20, f"P: {pitcher_text}", *Colors.YELLOW)
+            self.canvas.draw_text(55, 23, f"P: {pitcher_text}", *Colors.YELLOW)
 
     def _render_live_game(self, game: LiveGameData):
         """Render live game - exact match to original mlb-led-scoreboard."""
