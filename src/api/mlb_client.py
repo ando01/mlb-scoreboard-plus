@@ -33,7 +33,8 @@ class MLBAPIClient:
     def __init__(self, base_url: str = "https://statsapi.mlb.com"):
         self.base_url = base_url
         self._cache: Dict[str, tuple[Any, datetime]] = {}
-        self._cache_duration = timedelta(seconds=10)
+        self._game_cache_ttl = timedelta(seconds=8)    # live game data
+        self._schedule_cache_ttl = timedelta(seconds=60)  # game IDs rarely change
 
     # No-op async context manager kept for call-site compatibility.
     async def __aenter__(self):
@@ -42,10 +43,11 @@ class MLBAPIClient:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         pass
 
-    def _get_cached(self, key: str) -> Optional[Any]:
+    def _get_cached(self, key: str, ttl: Optional[timedelta] = None) -> Optional[Any]:
         if key in self._cache:
             data, timestamp = self._cache[key]
-            if datetime.now() - timestamp < self._cache_duration:
+            effective_ttl = ttl if ttl is not None else self._game_cache_ttl
+            if datetime.now() - timestamp < effective_ttl:
                 return data
         return None
 
@@ -60,7 +62,7 @@ class MLBAPIClient:
         """Return today's game PKs across all game types (sync)."""
         today = datetime.now().strftime("%Y-%m-%d")
         cache_key = f"today_games_{today}"
-        cached = self._get_cached(cache_key)
+        cached = self._get_cached(cache_key, ttl=self._schedule_cache_ttl)
         if cached is not None:
             return cached
 
@@ -311,7 +313,7 @@ class MLBAPIClient:
     def get_standings(self, division: str) -> List[StandingsEntry]:
         """Fetch division standings (sync)."""
         cache_key = f"standings_{division}"
-        cached = self._get_cached(cache_key)
+        cached = self._get_cached(cache_key, ttl=self._schedule_cache_ttl)
         if cached is not None:
             return cached
 
