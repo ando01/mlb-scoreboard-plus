@@ -175,21 +175,23 @@ class DataFetcher:
             else:
                 logger.info("No live games — using schedule data only")
 
-            # Filter to preferred teams when display_all is off.
-            # Done AFTER live detection so a live game outside preferred teams
-            # can still be fetched and shown when the favorite isn't playing.
+            # Filter to preferred teams when display_all is off — but ONLY
+            # when a preferred team is actually live right now.  If no
+            # preferred game is in progress, show the full schedule so the
+            # board always has live content to display.
             if not self.config.teams.display_all:
                 preferred: Set[str] = set(self.config.teams.preferred_teams)
-                display_games = [
+                pref_games = [
                     g for g in all_games
                     if g.home_team.abbreviation in preferred
                     or g.away_team.abbreviation in preferred
                 ]
-                # If the preferred filter removed everything (fav not playing),
-                # fall back to showing the active live game so the board isn't blank.
-                if not display_games and active_id is not None:
-                    display_games = [g for g in all_games if g.game_id == active_id]
-                all_games = display_games if display_games else all_games
+                pref_is_live = any(g.state in _live for g in pref_games)
+                if pref_is_live:
+                    # Preferred team is live — show only their game(s)
+                    all_games = pref_games
+                # else: preferred team not live — keep full schedule so live
+                # games from other teams are visible on the board
 
             with self._lock:
                 self._current_games = all_games

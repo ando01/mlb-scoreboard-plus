@@ -150,7 +150,16 @@ class Scoreboard:
             self.live_game_renderer.render(fav_game)
             return
 
-        # Otherwise cycle through all games (fav first)
+        # If the current slot is a finished game but live games exist,
+        # jump immediately to the first live game instead of waiting for rotation.
+        current = games[self.current_game_index % len(games)]
+        _finished = {GameState.FINAL, GameState.GAME_OVER}
+        if current.state in _finished:
+            for i, g in enumerate(games):
+                if g.state in _LIVE_STATES:
+                    self.current_game_index = i
+                    break
+
         game_index = self.current_game_index % len(games)
         self.live_game_renderer.render(games[game_index])
 
