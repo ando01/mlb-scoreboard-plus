@@ -6,7 +6,7 @@ from .animations import (
     AnimationManager, ScoreChangeAnimation, RunnerAnimation,
     PulseAnimation, SlideAnimation
 )
-from ..models.game import LiveGameData, GameState
+from ..models.game import LiveGameData, GameState, parse_game_state
 
 
 class LiveGameRenderer(BaseRenderer):
@@ -35,11 +35,15 @@ class LiveGameRenderer(BaseRenderer):
         self.animation_manager.update()
 
         # Render based on game state
-        if game.state == GameState.PREVIEW or game.state == GameState.PREGAME:
+        _pregame_states = (GameState.PREVIEW, GameState.PREGAME, GameState.SCHEDULED)
+        _live_states = (GameState.LIVE, GameState.IN_PROGRESS, GameState.WARMUP)
+        _final_states = (GameState.FINAL, GameState.GAME_OVER)
+
+        if game.state in _pregame_states:
             self._render_pregame(game)
-        elif game.state == GameState.LIVE:
+        elif game.state in _live_states:
             self._render_live_game(game)
-        elif game.state == GameState.FINAL:
+        elif game.state in _final_states:
             self._render_final(game)
         else:
             self._render_default(game)

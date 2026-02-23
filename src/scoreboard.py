@@ -7,6 +7,8 @@ from datetime import datetime, timedelta
 
 from .models.config import AppConfig
 from .models.game import GameState
+
+_LIVE_STATES = {GameState.LIVE, GameState.IN_PROGRESS, GameState.WARMUP, GameState.PREGAME}
 from .api.data_fetcher import DataFetcher
 from .api.news_fetcher import NewsFetcher
 from .renderers import Canvas, LiveGameRenderer, StandingsRenderer, StatsRenderer, NewsRenderer
@@ -114,9 +116,20 @@ class Scoreboard:
             # Default to live game
             await self._render_live_game()
 
-    async def _render_live_game(self):
-        """Render live game mode."""
+    def _get_sorted_games(self):
+        """Return today's games with the favorite team's game first."""
         games = self.data_fetcher.get_games()
+        fav = self.config.teams.favorite
+        return sorted(
+            games,
+            key=lambda g: 0 if (
+                g.home_team.abbreviation == fav or g.away_team.abbreviation == fav
+            ) else 1
+        )
+
+    async def _render_live_game(self):
+        """Render schedule cycling before games start; lock onto fav team when live."""
+        games = self._get_sorted_games()  # Favorite team always at index 0
 
         if not games:
             self.canvas.clear()
@@ -124,20 +137,16 @@ class Scoreboard:
             self.canvas.swap()
             return
 
-        # Prioritize live games
-        live_games = self.data_fetcher.get_live_games()
-        display_games = live_games if live_games else games
-
-        # Prioritize favorite team
+        # If the favorite team's game is live, lock onto it immediately
         fav_game = self.data_fetcher.get_favorite_game()
-        live_states = {GameState.LIVE, GameState.IN_PROGRESS, GameState.WARMUP, GameState.PREGAME}
-        if fav_game and fav_game.state in live_states:
-            display_games = [fav_game]
+        if fav_game and fav_game.state in _LIVE_STATES:
+            self.current_game_index = 0  # Reset so it doesn't drift
+            self.live_game_renderer.render(fav_game)
+            return
 
-        if display_games:
-            game_index = self.current_game_index % len(display_games)
-            current_game = display_games[game_index]
-            self.live_game_renderer.render(current_game)
+        # Otherwise cycle through all games (fav first)
+        game_index = self.current_game_index % len(games)
+        self.live_game_renderer.render(games[game_index])
 
     async def _render_stats(self):
         """Render detailed stats mode."""
@@ -185,11 +194,15 @@ class Scoreboard:
             # In off-season mode, news renderer handles its own story rotation
             return
 
-        games = self.data_fetcher.get_games()
+        games = self._get_sorted_games()
 
-        if self.current_mode == "live_game" and len(games) > 1:
-            # Rotate through games
-            self.current_game_index += 1
+        if self.current_mode == "live_game":
+            # Don't rotate when locked onto the favorite team's live game
+            fav_game = self.data_fetcher.get_favorite_game()
+            if fav_game and fav_game.state in _LIVE_STATES:
+                return  # Stay locked on fav game
+            if len(games) > 1:
+                self.current_game_index += 1
         elif self.current_mode == "standings":
             # Rotate through divisions
             self.standings_renderer.next_division()
