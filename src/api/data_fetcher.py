@@ -115,15 +115,19 @@ class DataFetcher:
 
             # Fetch game data concurrently
             if game_ids:
-                games = await asyncio.gather(
+                logger.info(f"Fetching game data for IDs: {game_ids}")
+                results = await asyncio.gather(
                     *[self.client.get_game_data(gid) for gid in game_ids],
                     return_exceptions=True
                 )
-                self.current_games = [g for g in games if isinstance(g, LiveGameData)]
-                logger.debug(f"Fetched {len(self.current_games)} games")
+                for gid, result in zip(game_ids, results):
+                    if isinstance(result, Exception):
+                        logger.error(f"Failed to parse game {gid}: {result}", exc_info=result)
+                self.current_games = [g for g in results if isinstance(g, LiveGameData)]
+                logger.info(f"Fetched {len(self.current_games)}/{len(game_ids)} games successfully")
             else:
                 self.current_games = []
-                logger.debug("No games today")
+                logger.info("No game IDs returned from schedule — no games today")
 
         except Exception as e:
             logger.error(f"Error fetching games: {e}", exc_info=True)

@@ -3,7 +3,10 @@ import asyncio
 import aiohttp
 from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any
+import logging
 import statsapi
+
+logger = logging.getLogger(__name__)
 from ..models.game import (
     LiveGameData, GameState, parse_game_state, Team, Inning, Count,
     BaseRunner, Play, PlayerStats, StandingsEntry
@@ -41,6 +44,25 @@ class MLBAPIClient:
         """Cache data with timestamp."""
         self._cache[key] = (data, datetime.now())
 
+    async def _fetch_schedule_direct(self, sport_id: int, date: str) -> List[int]:
+        """Fetch game IDs directly from MLB Stats API (used as reliable fallback)."""
+        try:
+            url = f"{self.base_url}/api/v1/schedule"
+            params = {"sportId": sport_id, "date": date}
+            async with self.session.get(url, params=params) as resp:
+                data = await resp.json()
+                game_ids = []
+                for date_entry in data.get("dates", []):
+                    for game in date_entry.get("games", []):
+                        gid = game.get("gamePk")
+                        if gid:
+                            game_ids.append(gid)
+                logger.info(f"Direct API sportId={sport_id} for {date}: {len(game_ids)} games -> {game_ids}")
+                return game_ids
+        except Exception as e:
+            logger.error(f"Direct schedule fetch failed (sportId={sport_id}): {e}", exc_info=True)
+            return []
+
     async def get_todays_games(self, team_id: Optional[int] = None) -> List[int]:
         """Get today's game IDs, including spring training fallback."""
         cache_key = f"today_games_{team_id}"
@@ -48,22 +70,28 @@ class MLBAPIClient:
         if cached:
             return cached
 
+        today = datetime.now().strftime("%Y-%m-%d")
         loop = asyncio.get_event_loop()
 
-        # Try regular season first (sportId=1)
-        games = await loop.run_in_executor(
-            None,
-            lambda: statsapi.schedule(team=team_id) if team_id else statsapi.schedule()
-        )
-
-        # Fall back to spring training (sportId=17) if no regular season games found
-        if not games:
+        # Try regular season via statsapi library
+        try:
             games = await loop.run_in_executor(
                 None,
-                lambda: statsapi.schedule(team=team_id, sportId=17) if team_id else statsapi.schedule(sportId=17)
+                lambda: statsapi.schedule(date=today, team=team_id) if team_id
+                        else statsapi.schedule(date=today)
             )
+            logger.info(f"statsapi regular season for {today}: {len(games)} games")
+        except Exception as e:
+            logger.error(f"statsapi regular season fetch error: {e}", exc_info=True)
+            games = []
 
-        game_ids = [g['game_id'] for g in games if g.get('game_id')]
+        game_ids = [g["game_id"] for g in games if g.get("game_id")]
+
+        # Fall back to spring training if no regular season games
+        if not game_ids:
+            logger.info("No regular season games — trying spring training (sportId=17) via direct API")
+            game_ids = await self._fetch_schedule_direct(sport_id=17, date=today)
+
         self._set_cache(cache_key, game_ids)
         return game_ids
 
@@ -80,9 +108,12 @@ class MLBAPIClient:
         state = parse_game_state(detailed_state, abstract_state)
 
         # Start time
-        start_time = datetime.fromisoformat(
-            game_info.get('datetime', {}).get('dateTime', '').replace('Z', '+00:00')
-        )
+        try:
+            start_time = datetime.fromisoformat(
+                game_info.get('datetime', {}).get('dateTime', '').replace('Z', '+00:00')
+            )
+        except (ValueError, TypeError):
+            start_time = datetime.now()
 
         # Teams
         teams_data = game_info.get('teams', {})
