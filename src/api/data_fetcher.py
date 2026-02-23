@@ -7,8 +7,7 @@ any asyncio-based fetch (Task, run_in_executor) would be starved and never
 complete.  A plain OS thread has no such dependency.
 """
 import threading
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import List, Optional
+from typing import List, Optional, Set
 from datetime import datetime
 import logging
 import os
@@ -96,8 +95,16 @@ class DataFetcher:
     # ------------------------------------------------------------------
 
     def _fetch_games(self):
-        """Fetch today's games and update self._current_games."""
-        logger.info(f"_fetch_games called, simulate={self.simulate}")
+        """Fetch game data with a two-tier strategy:
+
+        Tier 1 (every ~30 s, one API call):
+            Schedule endpoint with linescore+probablePitchers hydration.
+            Gives us teams, state, score, and inning for ALL games cheaply.
+
+        Tier 2 (every refresh_interval, one API call):
+            Full /feed/live for only the single game currently on the board.
+            This is the only data that needs to be real-time.
+        """
         try:
             if self.simulate:
                 games = self.simulator.get_games()
@@ -106,31 +113,59 @@ class DataFetcher:
                 logger.info(f"Simulated {len(games)} games")
                 return
 
-            if self.config.teams.display_all:
-                game_ids = self.client.get_todays_games()
-            else:
-                game_ids = []
-                for _team in self.config.teams.preferred_teams:
-                    game_ids.extend(self.client.get_todays_games())
-                game_ids = list(set(game_ids))
+            today = datetime.now().strftime("%Y-%m-%d")
 
-            # Fetch all games in parallel — sequential fetching of 14 games
-            # takes ~20 seconds; parallel drops it to ~1-2 seconds.
-            games = []
-            workers = min(len(game_ids), 10)
-            with ThreadPoolExecutor(max_workers=workers) as pool:
-                futures = {pool.submit(self.client.get_game_data, gid): gid
-                           for gid in game_ids}
-                for future in as_completed(futures):
-                    gid = futures[future]
-                    try:
-                        games.append(future.result())
-                    except Exception as e:
-                        logger.error(f"Failed to fetch game {gid}: {e}", exc_info=True)
+            # --- Tier 1: lightweight schedule fetch (all games, cached 30 s) ---
+            all_games = self.client.get_schedule_with_details(today)
+
+            if not all_games:
+                with self._lock:
+                    self._current_games = []
+                return
+
+            # Filter to preferred teams when display_all is off
+            if not self.config.teams.display_all:
+                preferred: Set[str] = set(self.config.teams.preferred_teams)
+                all_games = [
+                    g for g in all_games
+                    if g.home_team.abbreviation in preferred
+                    or g.away_team.abbreviation in preferred
+                ]
+
+            # --- Tier 2: full live feed for the active game only ---
+            # Priority: live favorite > any live game
+            _live = {GameState.LIVE, GameState.IN_PROGRESS, GameState.WARMUP}
+            fav = self.config.teams.favorite
+
+            active_id = None
+            for g in all_games:
+                if g.state in _live and (
+                    g.home_team.abbreviation == fav
+                    or g.away_team.abbreviation == fav
+                ):
+                    active_id = g.game_id
+                    break
+            if active_id is None:
+                for g in all_games:
+                    if g.state in _live:
+                        active_id = g.game_id
+                        break
+
+            if active_id is not None:
+                try:
+                    live = self.client.get_game_data(active_id)
+                    all_games = [
+                        live if g.game_id == active_id else g
+                        for g in all_games
+                    ]
+                    logger.info(f"Live feed fetched for game {active_id}")
+                except Exception as e:
+                    logger.error(f"Live feed fetch failed for {active_id}: {e}", exc_info=True)
+            else:
+                logger.info("No live games — using schedule data only")
 
             with self._lock:
-                self._current_games = games
-            logger.info(f"Fetched {len(games)}/{len(game_ids)} games successfully")
+                self._current_games = all_games
 
         except Exception as e:
             logger.error(f"Error fetching games: {e}", exc_info=True)

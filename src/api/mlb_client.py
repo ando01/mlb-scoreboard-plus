@@ -58,11 +58,15 @@ class MLBAPIClient:
     # Schedule
     # ------------------------------------------------------------------
 
-    def get_todays_games(self) -> List[int]:
-        """Return today's game PKs across all game types (sync)."""
-        today = datetime.now().strftime("%Y-%m-%d")
-        cache_key = f"today_games_{today}"
-        cached = self._get_cached(cache_key, ttl=self._schedule_cache_ttl)
+    def get_schedule_with_details(self, date: str) -> List[LiveGameData]:
+        """Fetch today's full schedule as lightweight LiveGameData objects.
+
+        One API call covers all games.  Includes linescore (score/inning)
+        and probablePitchers hydration so the pregame display works without
+        needing the heavy /feed/live endpoint.  Cached for 30 seconds.
+        """
+        cache_key = f"schedule_details_{date}"
+        cached = self._get_cached(cache_key, ttl=timedelta(seconds=30))
         if cached is not None:
             return cached
 
@@ -70,39 +74,108 @@ class MLBAPIClient:
             url = f"{self.base_url}/api/v1/schedule"
             params = {
                 "sportId": 1,
-                "date": today,
-                "gameType": "E,S,R,F,D,L,W,C",  # all types inc. spring training
+                "date": date,
+                "gameType": "E,S,R,F,D,L,W,C",
+                "hydrate": "linescore,probablePitchers,team",
             }
             data = _get_json(url, params)
-            game_ids = [
-                game["gamePk"]
-                for date_entry in data.get("dates", [])
-                for game in date_entry.get("games", [])
-                if game.get("gamePk")
-            ]
-            logger.info(f"Schedule {today}: {len(game_ids)} games {game_ids}")
-            self._set_cache(cache_key, game_ids)
-            return game_ids
+            games = []
+            for date_entry in data.get("dates", []):
+                for g in date_entry.get("games", []):
+                    parsed = self._parse_schedule_game(g)
+                    if parsed:
+                        games.append(parsed)
+            logger.info(f"Schedule {date}: {len(games)} games (lightweight)")
+            self._set_cache(cache_key, games)
+            return games
         except Exception as e:
             logger.error(f"Schedule fetch failed: {e}", exc_info=True)
             return []
+
+    def _parse_schedule_game(self, g: dict) -> Optional[LiveGameData]:
+        """Parse a schedule-endpoint game object into a basic LiveGameData."""
+        try:
+            game_pk = g.get("gamePk")
+            if not game_pk:
+                return None
+
+            status = g.get("status", {})
+            state = parse_game_state(
+                status.get("detailedState", ""),
+                status.get("abstractGameState", "Preview"),
+            )
+
+            try:
+                start_time = datetime.fromisoformat(
+                    g.get("gameDate", "").replace("Z", "+00:00")
+                )
+            except (ValueError, TypeError):
+                start_time = datetime.now()
+
+            teams_data = g.get("teams", {})
+            home_data = teams_data.get("home", {})
+            away_data = teams_data.get("away", {})
+            home_info = home_data.get("team", {})
+            away_info = away_data.get("team", {})
+
+            home_team = Team(
+                id=home_info.get("id", 0),
+                name=home_info.get("name", "Unknown"),
+                abbreviation=home_info.get("abbreviation", "UNK"),
+                score=home_data.get("score", 0),
+                hits=0, errors=0,
+            )
+            away_team = Team(
+                id=away_info.get("id", 0),
+                name=away_info.get("name", "Unknown"),
+                abbreviation=away_info.get("abbreviation", "UNK"),
+                score=away_data.get("score", 0),
+                hits=0, errors=0,
+            )
+
+            ls = g.get("linescore", {})
+            inning_num = ls.get("currentInning", 1)
+            inning = Inning(
+                num=inning_num,
+                ordinal=ls.get("currentInningOrdinal", f"{inning_num}th"),
+                half="top" if ls.get("isTopInning", True) else "bottom",
+            )
+            count = Count(
+                balls=ls.get("balls", 0),
+                strikes=ls.get("strikes", 0),
+                outs=ls.get("outs", 0),
+            )
+
+            prob = g.get("probablePitchers", {})
+            return LiveGameData(
+                game_id=game_pk,
+                state=state,
+                start_time=start_time,
+                inning=inning,
+                count=count,
+                runners=BaseRunner(),
+                home_team=home_team,
+                away_team=away_team,
+                probable_pitcher_home=prob.get("home", {}).get("fullName"),
+                probable_pitcher_away=prob.get("away", {}).get("fullName"),
+            )
+        except Exception as e:
+            logger.error(f"Error parsing schedule game {g.get('gamePk')}: {e}")
+            return None
 
     # ------------------------------------------------------------------
     # Game feed
     # ------------------------------------------------------------------
 
     def get_game_data(self, game_id: int) -> LiveGameData:
-        """Fetch and parse a single game's live feed (sync)."""
-        cache_key = f"game_{game_id}"
-        cached = self._get_cached(cache_key)
-        if cached is not None:
-            return cached
+        """Fetch and parse a single game's live feed (sync, no cache).
 
+        Called only for the one game currently on the board, so caching
+        would just introduce unnecessary lag.
+        """
         url = f"{self.base_url}/api/v1.1/game/{game_id}/feed/live"
         game_data = _get_json(url)
-        parsed = self._parse_game_data(game_data)
-        self._set_cache(cache_key, parsed)
-        return parsed
+        return self._parse_game_data(game_data)
 
     def _parse_game_data(self, game_data: dict) -> LiveGameData:
         """Parse raw game feed into LiveGameData."""
