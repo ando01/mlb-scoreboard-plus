@@ -45,11 +45,17 @@ class MLBAPIClient:
     # Schedule
     # ------------------------------------------------------------------
 
-    async def _fetch_schedule(self, sport_id: int, date: str) -> List[int]:
-        """Fetch game PKs from /api/v1/schedule for a given sportId and date."""
+    async def _fetch_schedule(self, date: str, game_type: str = "E,S,R,F,D,L,W,C") -> List[int]:
+        """Fetch game PKs from /api/v1/schedule.
+
+        gameType codes: S=Spring Training, R=Regular Season, E=Exhibition,
+        F=Wild Card, D=Division Series, L=LCS, W=World Series, C=Championship.
+        Passing all types means one call covers spring training and regular
+        season without any fallback logic.
+        """
         try:
             url = f"{self.base_url}/api/v1/schedule"
-            params = {"sportId": sport_id, "date": date}
+            params = {"sportId": 1, "date": date, "gameType": game_type}
             async with self.session.get(url, params=params, timeout=_TIMEOUT) as resp:
                 data = await resp.json(content_type=None)
             game_ids = [
@@ -58,28 +64,21 @@ class MLBAPIClient:
                 for game in date_entry.get("games", [])
                 if game.get("gamePk")
             ]
-            logger.info(f"Schedule sportId={sport_id} date={date}: {len(game_ids)} games {game_ids}")
+            logger.info(f"Schedule date={date} gameType={game_type}: {len(game_ids)} games {game_ids}")
             return game_ids
         except Exception as e:
-            logger.error(f"Schedule fetch failed (sportId={sport_id} date={date}): {e}", exc_info=True)
+            logger.error(f"Schedule fetch failed (date={date}): {e}", exc_info=True)
             return []
 
     async def get_todays_games(self, team_id: Optional[int] = None) -> List[int]:
-        """Get today's game PKs. Falls back to spring training (sportId=17)."""
+        """Get today's game PKs across all game types (regular season, spring training, playoffs)."""
         today = datetime.now().strftime("%Y-%m-%d")
         cache_key = f"today_games_{today}"
         cached = self._get_cached(cache_key)
         if cached is not None:
             return cached
 
-        # Regular season first
-        game_ids = await self._fetch_schedule(sport_id=1, date=today)
-
-        # Spring training fallback
-        if not game_ids:
-            logger.info("No regular-season games today — checking spring training (sportId=17)")
-            game_ids = await self._fetch_schedule(sport_id=17, date=today)
-
+        game_ids = await self._fetch_schedule(date=today)
         self._set_cache(cache_key, game_ids)
         return game_ids
 
