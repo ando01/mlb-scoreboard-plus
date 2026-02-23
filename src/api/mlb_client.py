@@ -1,5 +1,13 @@
-"""MLB Stats API client — fully async via aiohttp (no statsapi library)."""
-import aiohttp
+"""MLB Stats API client.
+
+HTTP calls use requests (sync) wrapped in run_in_executor so they run in
+threads rather than on the asyncio event loop.  This keeps the fetcher
+working correctly even when the LED-matrix render loop makes blocking
+hardware calls (canvas.swap / SwapOnVSync) that would otherwise starve
+the event loop and prevent aiohttp callbacks from ever firing.
+"""
+import asyncio
+import requests
 from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any
 import logging
@@ -11,25 +19,29 @@ from ..models.game import (
 
 logger = logging.getLogger(__name__)
 
-_TIMEOUT = aiohttp.ClientTimeout(total=15)
+_HTTP_TIMEOUT = 15  # seconds
+
+
+def _get_json(url: str, params: Optional[dict] = None) -> dict:
+    """Synchronous JSON fetch with timeout (runs in a thread via run_in_executor)."""
+    resp = requests.get(url, params=params, timeout=_HTTP_TIMEOUT)
+    resp.raise_for_status()
+    return resp.json()
 
 
 class MLBAPIClient:
-    """Async MLB Stats API client."""
+    """MLB Stats API client (thread-backed HTTP, async interface)."""
 
     def __init__(self, base_url: str = "https://statsapi.mlb.com"):
         self.base_url = base_url
-        self.session: Optional[aiohttp.ClientSession] = None
         self._cache: Dict[str, tuple[Any, datetime]] = {}
         self._cache_duration = timedelta(seconds=10)
 
     async def __aenter__(self):
-        self.session = aiohttp.ClientSession()
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        if self.session:
-            await self.session.close()
+        pass
 
     def _get_cached(self, key: str) -> Optional[Any]:
         if key in self._cache:
@@ -56,8 +68,8 @@ class MLBAPIClient:
         try:
             url = f"{self.base_url}/api/v1/schedule"
             params = {"sportId": 1, "date": date, "gameType": game_type}
-            async with self.session.get(url, params=params, timeout=_TIMEOUT) as resp:
-                data = await resp.json(content_type=None)
+            loop = asyncio.get_event_loop()
+            data = await loop.run_in_executor(None, lambda: _get_json(url, params))
             game_ids = [
                 game["gamePk"]
                 for date_entry in data.get("dates", [])
@@ -94,8 +106,8 @@ class MLBAPIClient:
             return cached
 
         url = f"{self.base_url}/api/v1.1/game/{game_id}/feed/live"
-        async with self.session.get(url, timeout=_TIMEOUT) as resp:
-            game_data = await resp.json(content_type=None)
+        loop = asyncio.get_event_loop()
+        game_data = await loop.run_in_executor(None, lambda: _get_json(url))
 
         parsed = self._parse_game_data(game_data)
         self._set_cache(cache_key, parsed)
@@ -246,8 +258,8 @@ class MLBAPIClient:
             year = datetime.now().year
             url = f"{self.base_url}/api/v1/standings"
             params = {"leagueId": "103,104", "season": year, "hydrate": "team"}
-            async with self.session.get(url, params=params, timeout=_TIMEOUT) as resp:
-                data = await resp.json(content_type=None)
+            loop = asyncio.get_event_loop()
+            data = await loop.run_in_executor(None, lambda: _get_json(url, params))
 
             for record in data.get("records", []):
                 div_name = record.get("division", {}).get("name", "")
