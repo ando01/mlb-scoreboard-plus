@@ -141,21 +141,12 @@ class DataFetcher:
                     self._current_games = []
                 return
 
-            # Filter to preferred teams when display_all is off
-            if not self.config.teams.display_all:
-                preferred: Set[str] = set(self.config.teams.preferred_teams)
-                all_games = [
-                    g for g in all_games
-                    if g.home_team.abbreviation in preferred
-                    or g.away_team.abbreviation in preferred
-                ]
-
             # --- Tier 2: full live feed for the active game only ---
-            # Priority: live favorite > any live game
+            # Search the FULL schedule for live games — filter comes after.
+            # Priority: pinned > live favorite > any live game
             _live = {GameState.LIVE, GameState.IN_PROGRESS, GameState.WARMUP}
             fav = self.config.teams.favorite
 
-            # Use pinned game if the user selected one, else auto-select
             active_id = self.pinned_game_id
             if active_id is None:
                 for g in all_games:
@@ -183,6 +174,22 @@ class DataFetcher:
                     logger.error(f"Live feed fetch failed for {active_id}: {e}", exc_info=True)
             else:
                 logger.info("No live games — using schedule data only")
+
+            # Filter to preferred teams when display_all is off.
+            # Done AFTER live detection so a live game outside preferred teams
+            # can still be fetched and shown when the favorite isn't playing.
+            if not self.config.teams.display_all:
+                preferred: Set[str] = set(self.config.teams.preferred_teams)
+                display_games = [
+                    g for g in all_games
+                    if g.home_team.abbreviation in preferred
+                    or g.away_team.abbreviation in preferred
+                ]
+                # If the preferred filter removed everything (fav not playing),
+                # fall back to showing the active live game so the board isn't blank.
+                if not display_games and active_id is not None:
+                    display_games = [g for g in all_games if g.game_id == active_id]
+                all_games = display_games if display_games else all_games
 
             with self._lock:
                 self._current_games = all_games
