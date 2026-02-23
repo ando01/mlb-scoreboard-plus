@@ -157,7 +157,8 @@ class DataFetcher:
     def get_live_games(self) -> List[LiveGameData]:
         """Get only live games."""
         from ..models.game import GameState
-        return [g for g in self.current_games if g.state == GameState.LIVE]
+        live_states = {GameState.LIVE, GameState.IN_PROGRESS, GameState.WARMUP, GameState.PREGAME}
+        return [g for g in self.current_games if g.state in live_states]
 
     def get_favorite_game(self) -> Optional[LiveGameData]:
         """Get the favorite team's game if available."""

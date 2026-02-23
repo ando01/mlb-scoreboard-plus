@@ -14,6 +14,46 @@ class GameState(str, Enum):
     FINAL = "Final"
     POSTPONED = "Postponed"
     SUSPENDED = "Suspended"
+    SCHEDULED = "Scheduled"      # Spring training / pre-season
+    IN_PROGRESS = "In Progress"  # Alternate live state from API
+    GAME_OVER = "Game Over"      # Alternate final state from API
+
+
+# Maps raw MLB API detailedState / abstractGameState strings to GameState
+_STATE_MAP: dict = {
+    "scheduled": GameState.SCHEDULED,
+    "pre-game": GameState.PREGAME,
+    "pregame": GameState.PREGAME,
+    "warmup": GameState.WARMUP,
+    "preview": GameState.PREVIEW,
+    "live": GameState.LIVE,
+    "in progress": GameState.IN_PROGRESS,
+    "manager challenge": GameState.LIVE,
+    "review": GameState.LIVE,
+    "game over": GameState.GAME_OVER,
+    "final": GameState.FINAL,
+    "completed early": GameState.FINAL,
+    "postponed": GameState.POSTPONED,
+    "suspended": GameState.SUSPENDED,
+    "cancelled": GameState.POSTPONED,
+    "delayed": GameState.PREVIEW,
+    "delayed start": GameState.PREVIEW,
+}
+
+
+def parse_game_state(detail: str, abstract: str = "") -> GameState:
+    """Map an MLB API state string to a GameState, with safe fallback."""
+    for raw in (detail, abstract):
+        key = raw.strip().lower()
+        if key in _STATE_MAP:
+            return _STATE_MAP[key]
+    # Try the enum directly (handles values already matching enum members)
+    for raw in (detail, abstract):
+        try:
+            return GameState(raw)
+        except ValueError:
+            pass
+    return GameState.PREVIEW  # safe default
 
 
 class BaseRunner(BaseModel):

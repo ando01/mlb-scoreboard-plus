@@ -130,7 +130,8 @@ class Scoreboard:
 
         # Prioritize favorite team
         fav_game = self.data_fetcher.get_favorite_game()
-        if fav_game and fav_game.state == GameState.LIVE:
+        live_states = {GameState.LIVE, GameState.IN_PROGRESS, GameState.WARMUP, GameState.PREGAME}
+        if fav_game and fav_game.state in live_states:
             display_games = [fav_game]
 
         if display_games:

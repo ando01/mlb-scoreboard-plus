@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any
 import statsapi
 from ..models.game import (
-    LiveGameData, GameState, Team, Inning, Count,
+    LiveGameData, GameState, parse_game_state, Team, Inning, Count,
     BaseRunner, Play, PlayerStats, StandingsEntry
 )
 
@@ -76,7 +76,8 @@ class MLBAPIClient:
         # Game state
         status = game_info.get('status', {})
         abstract_state = status.get('abstractGameState', 'Preview')
-        state = GameState(status.get('detailedState', abstract_state))
+        detailed_state = status.get('detailedState', abstract_state)
+        state = parse_game_state(detailed_state, abstract_state)
 
         # Start time
         start_time = datetime.fromisoformat(
