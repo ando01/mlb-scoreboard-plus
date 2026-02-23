@@ -61,9 +61,10 @@ class MLBAPIClient:
     def get_schedule_with_details(self, date: str) -> List[LiveGameData]:
         """Fetch today's full schedule as lightweight LiveGameData objects.
 
-        One API call covers all games.  Includes linescore (score/inning)
-        and probablePitchers hydration so the pregame display works without
-        needing the heavy /feed/live endpoint.  Cached for 30 seconds.
+        Uses the basic schedule endpoint with no hydration — teams, state,
+        start time, and score are all present in the default response.
+        Hydration was causing the API to return fewer games than expected.
+        Cached for 30 seconds.
         """
         cache_key = f"schedule_details_{date}"
         cached = self._get_cached(cache_key, ttl=timedelta(seconds=30))
@@ -76,7 +77,6 @@ class MLBAPIClient:
                 "sportId": 1,
                 "date": date,
                 "gameType": "E,S,R,F,D,L,W,C",
-                "hydrate": "linescore,probablePitchers,team",
             }
             data = _get_json(url, params)
             games = []
