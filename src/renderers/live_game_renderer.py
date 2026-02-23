@@ -103,8 +103,40 @@ class LiveGameRenderer(BaseRenderer):
             pitcher_text = game.probable_pitcher_home.split()[-1][:8]
             self.canvas.draw_text(55, 23, f"P: {pitcher_text}", *Colors.YELLOW)
 
+    def _render_end_of_inning(self, game: LiveGameData):
+        """Render end-of-inning screen: score + next 3 batters."""
+        away_color = Colors.get_team_color(game.away_team.abbreviation)
+        home_color = Colors.get_team_color(game.home_team.abbreviation)
+
+        # Keep the same team-color bars so the display feels continuous
+        self.canvas.draw_rect(0, 0, 128, 12, *away_color, filled=True)
+        self.canvas.draw_text(2, 10, game.away_team.abbreviation, *Colors.WHITE)
+        self.canvas.draw_text(30, 10, str(game.away_team.score).rjust(2), *Colors.WHITE)
+
+        self.canvas.draw_rect(0, 13, 128, 12, *home_color, filled=True)
+        self.canvas.draw_text(2, 23, game.home_team.abbreviation, *Colors.WHITE)
+        self.canvas.draw_text(30, 23, str(game.home_team.score).rjust(2), *Colors.WHITE)
+
+        # "END TOP 3RD" / "END BOT 5TH" header
+        half_str = "TOP" if game.inning.half == "top" else "BOT"
+        header = f"END {half_str} {game.inning.ordinal.upper()}"
+        self.canvas.draw_text(2, 35, header, *Colors.ORANGE, font=self.small_font)
+
+        # "NEXT UP" label right-side
+        self.canvas.draw_text(75, 35, "NEXT UP", *Colors.CYAN, font=self.small_font)
+
+        # Next three batters, one per row
+        for i, name in enumerate(game.next_batters[:3]):
+            batter_text = f"{i + 1}. {name[:14]}"
+            self.canvas.draw_text(2, 44 + i * 9, batter_text, *Colors.WHITE, font=self.small_font)
+
     def _render_live_game(self, game: LiveGameData):
         """Render live game - exact match to original mlb-led-scoreboard."""
+        # Show end-of-inning screen when 3 outs and next batters are known
+        if game.count.outs >= 3 and game.next_batters:
+            self._render_end_of_inning(game)
+            return
+
 
         # Get team colors
         away_team_color = Colors.get_team_color(game.away_team.abbreviation)

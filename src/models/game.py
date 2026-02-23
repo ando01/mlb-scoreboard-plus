@@ -128,6 +128,7 @@ class LiveGameData(BaseModel):
     last_pitch_speed: Optional[float] = None
     pitch_count: Optional[int] = None  # Current pitch count
     show_pitch_result: bool = False  # Toggle between showing pitch count vs pitch result
+    next_batters: List[str] = []  # Next 3 batters for the upcoming half-inning
 
 
 class StandingsEntry(BaseModel):

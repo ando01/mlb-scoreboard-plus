@@ -349,6 +349,50 @@ class MLBAPIClient:
                 rbi=result.get("rbi", 0),
             )
 
+        # ----------------------------------------------------------------
+        # Next batters — populated when outs == 3 (end of half-inning)
+        # ----------------------------------------------------------------
+        next_batters: list = []
+        _live_states = {GameState.LIVE, GameState.IN_PROGRESS}
+        if count.outs >= 3 and state in _live_states:
+            is_top = line_score.get("isTopInning", True)
+            # The team batting NEXT is the opposite of whoever is batting now.
+            # Top of inning = away batting → home bats next (bottom).
+            # Bottom of inning = home batting → away bats next (top).
+            next_side = "home" if is_top else "away"
+            batting_order = (
+                boxscore.get("teams", {})
+                        .get(next_side, {})
+                        .get("battingOrder", [])
+            )
+            if batting_order:
+                # Find last at-bat from the upcoming team by scanning allPlays
+                # in reverse — tells us where they are in the batting order.
+                expected_half = "bottom" if next_side == "home" else "top"
+                batting_set = set(batting_order)
+                all_plays = live_data.get("plays", {}).get("allPlays", [])
+                last_batter_id = None
+                for play in reversed(all_plays):
+                    if play.get("about", {}).get("halfInning") == expected_half:
+                        bid = play.get("matchup", {}).get("batter", {}).get("id")
+                        if bid and bid in batting_set:
+                            last_batter_id = bid
+                            break
+
+                if last_batter_id and last_batter_id in batting_order:
+                    pos = batting_order.index(last_batter_id)
+                    n = len(batting_order)
+                    next_ids = [batting_order[(pos + 1 + i) % n] for i in range(3)]
+                else:
+                    # Can't determine position — start from top of order
+                    next_ids = batting_order[:3]
+
+                for pid in next_ids:
+                    entry = gd_players.get(f"ID{pid}", {})
+                    name = entry.get("boxscoreName") or entry.get("fullName") or ""
+                    if name:
+                        next_batters.append(name)
+
         # Probable pitchers (preview / pregame / scheduled)
         prob_home = None
         prob_away = None
@@ -378,6 +422,7 @@ class MLBAPIClient:
             last_pitch_speed=last_pitch_speed,
             pitch_count=pitch_count,
             show_pitch_result=show_pitch_result,
+            next_batters=next_batters,
         )
 
     # ------------------------------------------------------------------
