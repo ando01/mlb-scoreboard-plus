@@ -166,46 +166,99 @@ class MLBAPIClient:
             outs=line_score.get("outs", 0),
         )
 
-        # Build a player-id → season stats map from the boxscore so we can
-        # look up AVG and ERA without extra API calls.
-        all_players: Dict[int, dict] = {}
+        # ----------------------------------------------------------------
+        # Player lookup helpers
+        # ----------------------------------------------------------------
+        # gameData.players is keyed "ID{id}" and contains boxscoreName /
+        # fullName for every player on both rosters — the canonical source
+        # used by the reference MLB-LED-Scoreboard project.
+        gd_players = game_info.get("players", {})  # {"ID123": {"boxscoreName": ..., ...}}
+
+        def player_name(player_obj: dict) -> str:
+            """Return display name, preferring gameData.players lookup."""
+            pid = player_obj.get("id")
+            if pid:
+                entry = gd_players.get(f"ID{pid}", {})
+                name = entry.get("boxscoreName") or entry.get("fullName")
+                if name:
+                    return name
+            return player_obj.get("fullName") or player_obj.get("name") or "Unknown"
+
+        # Build player-id → boxscore entry for stat lookups
         boxscore = live_data.get("boxscore", {})
+        bs_players: Dict[int, dict] = {}
         for side in ("home", "away"):
             for pdata in boxscore.get("teams", {}).get(side, {}).get("players", {}).values():
                 pid = pdata.get("person", {}).get("id")
                 if pid:
-                    all_players[pid] = pdata
+                    bs_players[pid] = pdata
 
+        # ----------------------------------------------------------------
         # Runners
+        # ----------------------------------------------------------------
         offense = line_score.get("offense", {})
         defense = line_score.get("defense", {})
         runners = BaseRunner(
-            first=offense.get("first", {}).get("fullName") if offense.get("first") else None,
-            second=offense.get("second", {}).get("fullName") if offense.get("second") else None,
-            third=offense.get("third", {}).get("fullName") if offense.get("third") else None,
+            first=player_name(offense["first"]) if offense.get("first") else None,
+            second=player_name(offense["second"]) if offense.get("second") else None,
+            third=player_name(offense["third"]) if offense.get("third") else None,
         )
 
-        # Current batter — comes from linescore.offense
+        # ----------------------------------------------------------------
+        # Current batter — linescore.offense.batter
+        # ----------------------------------------------------------------
         current_batter = None
         if offense.get("batter"):
             b = offense["batter"]
-            bstats = all_players.get(b.get("id"), {})
+            bstats = bs_players.get(b.get("id"), {})
             avg = bstats.get("seasonStats", {}).get("batting", {}).get("avg", ".000")
             current_batter = PlayerStats(
-                name=b.get("fullName", "Unknown"),
+                name=player_name(b),
                 avg=str(avg),
             )
 
-        # Current pitcher — comes from linescore.defense (NOT offense)
+        # ----------------------------------------------------------------
+        # Current pitcher — linescore.defense.pitcher
+        # ----------------------------------------------------------------
         current_pitcher = None
         if defense.get("pitcher"):
             p = defense["pitcher"]
-            pstats = all_players.get(p.get("id"), {})
+            pid = p.get("id")
+            pstats = bs_players.get(pid, {})
             era = pstats.get("seasonStats", {}).get("pitching", {}).get("era", "0.00")
             current_pitcher = PlayerStats(
-                name=p.get("fullName", "Unknown"),
+                name=player_name(p),
                 era=str(era),
             )
+
+        # ----------------------------------------------------------------
+        # Pitch data — currentPlay.playEvents (mirrors reference approach)
+        # ----------------------------------------------------------------
+        last_pitch_type: Optional[str] = None
+        last_pitch_speed: Optional[float] = None
+        pitch_count: Optional[int] = None
+        show_pitch_result: bool = False
+
+        current_play = live_data.get("plays", {}).get("currentPlay", {})
+        if current_play:
+            play_events = current_play.get("playEvents", [])
+            # Find the last pitch event in the current at-bat
+            for event in reversed(play_events):
+                if event.get("isPitch", False):
+                    last_pitch_speed = event.get("pitchData", {}).get("startSpeed")
+                    details = event.get("details", {})
+                    last_pitch_type = details.get("type", {}).get("description")
+                    show_pitch_result = True
+                    break
+
+        # Total pitch count for the current pitcher (game stats, not season stats)
+        if current_pitcher and defense.get("pitcher"):
+            pid = defense["pitcher"].get("id")
+            if pid:
+                pentry = bs_players.get(pid, {})
+                np = pentry.get("stats", {}).get("pitching", {}).get("numberOfPitches")
+                if np is not None:
+                    pitch_count = int(np)
 
         # Last play
         last_play = None
@@ -245,6 +298,10 @@ class MLBAPIClient:
             last_play=last_play,
             probable_pitcher_home=prob_home,
             probable_pitcher_away=prob_away,
+            last_pitch_type=last_pitch_type,
+            last_pitch_speed=last_pitch_speed,
+            pitch_count=pitch_count,
+            show_pitch_result=show_pitch_result,
         )
 
     # ------------------------------------------------------------------
