@@ -33,6 +33,7 @@ class DataFetcher:
         self._standings: List[StandingsEntry] = []
 
         self.refresh_interval: int = 5  # seconds between data fetches
+        self.pinned_game_id: Optional[int] = None
 
         self._stop_event = threading.Event()
         self._thread: Optional[threading.Thread] = None
@@ -71,6 +72,23 @@ class DataFetcher:
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.stop()
+
+    def set_pinned_game(self, game_id: Optional[int]):
+        """Pin a specific game to show on the board. Pass None to auto-select."""
+        self.pinned_game_id = game_id
+        # Clear current games so the next fetch immediately picks up the new game
+        with self._lock:
+            self._current_games = []
+
+    def get_pinned_game(self) -> Optional[LiveGameData]:
+        """Return the pinned game's data, or None if no pin is set."""
+        if self.pinned_game_id is None:
+            return None
+        with self._lock:
+            for game in self._current_games:
+                if game.game_id == self.pinned_game_id:
+                    return game
+        return None
 
     # ------------------------------------------------------------------
     # Background thread
@@ -137,14 +155,16 @@ class DataFetcher:
             _live = {GameState.LIVE, GameState.IN_PROGRESS, GameState.WARMUP}
             fav = self.config.teams.favorite
 
-            active_id = None
-            for g in all_games:
-                if g.state in _live and (
-                    g.home_team.abbreviation == fav
-                    or g.away_team.abbreviation == fav
-                ):
-                    active_id = g.game_id
-                    break
+            # Use pinned game if the user selected one, else auto-select
+            active_id = self.pinned_game_id
+            if active_id is None:
+                for g in all_games:
+                    if g.state in _live and (
+                        g.home_team.abbreviation == fav
+                        or g.away_team.abbreviation == fav
+                    ):
+                        active_id = g.game_id
+                        break
             if active_id is None:
                 for g in all_games:
                     if g.state in _live:

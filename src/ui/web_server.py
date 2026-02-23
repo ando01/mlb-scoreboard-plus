@@ -112,6 +112,7 @@ async def get_status():
             "simulation_mode": data_fetcher_instance.simulate if data_fetcher_instance else False,
             "games_count": len(data_fetcher_instance.get_games()) if data_fetcher_instance else 0,
             "refresh_interval": data_fetcher_instance.refresh_interval if data_fetcher_instance else 5,
+            "pinned_game_id": data_fetcher_instance.pinned_game_id if data_fetcher_instance else None,
         }
     return {"running": False}
 
@@ -281,6 +282,15 @@ async def set_refresh_interval(data: dict):
 
     raise HTTPException(status_code=500, detail="Scoreboard not running")
 
+
+@app.post("/api/games/pin")
+async def pin_game(data: dict):
+    """Pin a specific game to the scoreboard display. Send game_id=null to auto-select."""
+    game_id = data.get("game_id")  # None = auto-select
+    if data_fetcher_instance:
+        data_fetcher_instance.set_pinned_game(game_id)
+        return {"status": "success", "pinned_game_id": game_id}
+    raise HTTPException(status_code=500, detail="Scoreboard not running")
 
 @app.post("/api/simulation/toggle")
 async def toggle_simulation(data: dict):

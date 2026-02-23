@@ -137,6 +137,12 @@ class Scoreboard:
             self.canvas.swap()
             return
 
+        # Pinned game (user-selected from UI) takes top priority
+        pinned = self.data_fetcher.get_pinned_game()
+        if pinned:
+            self.live_game_renderer.render(pinned)
+            return
+
         # If the favorite team's game is live, lock onto it immediately
         fav_game = self.data_fetcher.get_favorite_game()
         if fav_game and fav_game.state in _LIVE_STATES:

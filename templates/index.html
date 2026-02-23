@@ -253,6 +253,69 @@
             color: #991b1b;
             border: 1px solid #fca5a5;
         }
+        /* ── MLB.com-style Game Ticker ── */
+        .ticker-wrap {
+            background: #041e42;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .ticker-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 16px;
+            background: #002d72;
+        }
+        .ticker-title {
+            color: #fff;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        .ticker-scroll {
+            display: flex;
+            overflow-x: auto;
+            gap: 3px;
+            padding: 6px;
+            scrollbar-width: thin;
+            scrollbar-color: #1a4a8a #041e42;
+        }
+        .ticker-scroll::-webkit-scrollbar { height: 4px; }
+        .ticker-scroll::-webkit-scrollbar-track { background: #041e42; }
+        .ticker-scroll::-webkit-scrollbar-thumb { background: #1a4a8a; border-radius: 2px; }
+        .game-chip {
+            flex: 0 0 auto;
+            background: #0a2a5e;
+            border: 1px solid #1a4a8a;
+            border-radius: 6px;
+            padding: 8px 12px;
+            cursor: pointer;
+            min-width: 108px;
+            color: white;
+            transition: background 0.15s, border-color 0.15s;
+            position: relative;
+            text-align: center;
+        }
+        .game-chip:hover { background: #1a4a8a; border-color: #667eea; }
+        .game-chip.pinned { background: #0d2b1a; border-color: #4ade80; box-shadow: 0 0 0 1px #4ade80; }
+        .game-chip.fav-game { border-left: 3px solid #2563eb; }
+        .chip-matchup { display: flex; align-items: center; justify-content: center; gap: 6px; }
+        .chip-team-block { text-align: center; min-width: 38px; }
+        .chip-abbr { font-size: 11px; font-weight: 700; color: #aac; text-transform: uppercase; }
+        .chip-score { font-size: 20px; font-weight: 700; color: #fff; line-height: 1.1; }
+        .chip-score.no-score { font-size: 12px; color: #556; }
+        .chip-divider { color: #445; font-size: 13px; margin: 0 1px; }
+        .chip-status { text-align: center; margin-top: 3px; font-size: 11px; color: #778; }
+        .chip-status.live { color: #4ade80; }
+        .chip-status.final { color: #666; }
+        .chip-on-board { position: absolute; top: 2px; right: 4px; font-size: 8px; color: #4ade80; font-weight: 700; letter-spacing: 0.5px; }
+        .live-pip { display: inline-block; width: 5px; height: 5px; background: #4ade80; border-radius: 50%; margin-right: 3px; animation: pulse 1.5s infinite; vertical-align: middle; }
+        .btn-auto { background: transparent; border: 1px solid #1a4a8a; color: #aaa; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; white-space: nowrap; transition: all 0.15s; }
+        .btn-auto:hover { border-color: #667eea; color: white; }
+        .btn-auto.active { background: #4ade80; border-color: #4ade80; color: #041e42; font-weight: 600; }
     </style>
 </head>
 <body>
@@ -261,6 +324,17 @@
             <h1>⚾ MLB LED Scoreboard</h1>
             <p class="subtitle">Control Panel - Configure and monitor your LED scoreboard</p>
         </header>
+
+        <!-- MLB.com-style Game Ticker -->
+        <div class="ticker-wrap">
+            <div class="ticker-header">
+                <span class="ticker-title">⚾ Today's Games</span>
+                <button class="btn-auto active" id="btn-auto" onclick="pinGame(null)">● Auto</button>
+            </div>
+            <div class="ticker-scroll" id="game-ticker">
+                <div style="color:#556;padding:14px 16px;font-size:13px;">Loading games…</div>
+            </div>
+        </div>
 
         <div class="grid">
             <!-- Status Card -->
@@ -391,13 +465,6 @@
             </div>
         </div>
 
-        <!-- Games Card -->
-        <div class="card">
-            <h2>Today's Games</h2>
-            <div id="games-list" class="game-list">
-                <p style="color: #666;">Loading games...</p>
-            </div>
-        </div>
     </div>
 
     <script>
@@ -423,6 +490,11 @@
                         btn.textContent = '🟢 Turn Display ON';
                         btn.style.background = '#10b981';
                     }
+                }
+
+                // Sync pinned game from server state
+                if (data.pinned_game_id !== undefined) {
+                    pinnedGameId = data.pinned_game_id;
                 }
 
                 // Update refresh interval slider
@@ -454,55 +526,115 @@
             try {
                 const response = await fetch('/api/games');
                 const games = await response.json();
-                displayGames(games);
+                displayGameTicker(games);
             } catch (error) {
                 console.error('Error fetching games:', error);
             }
         }
 
-        // Display games
-        function displayGames(games) {
-            const gamesList = document.getElementById('games-list');
-            if (games.length === 0) {
-                gamesList.innerHTML = '<p style="color: #666;">No games today</p>';
+        // MLB.com-style horizontal game ticker
+        function displayGameTicker(games) {
+            const ticker = document.getElementById('game-ticker');
+            const autoBtn = document.getElementById('btn-auto');
+            if (!ticker) return;
+
+            autoBtn.className = pinnedGameId === null ? 'btn-auto active' : 'btn-auto';
+            autoBtn.textContent = pinnedGameId === null ? '● Auto' : '○ Auto';
+
+            if (!games || games.length === 0) {
+                ticker.innerHTML = '<div style="color:#556;padding:14px 16px;font-size:13px;">No games today</div>';
                 return;
             }
 
             const fav = config.teams?.favorite;
+            const liveStates = new Set(['Live', 'In Progress', 'Warmup', 'Pre-Game']);
+            const finalStates = new Set(['Final', 'Game Over']);
 
-            // Sort: favorite team first, then live games, then others
             const sorted = [...games].sort((a, b) => {
-                const aIsFav = fav && (a.home_team.abbreviation === fav || a.away_team.abbreviation === fav);
-                const bIsFav = fav && (b.home_team.abbreviation === fav || b.away_team.abbreviation === fav);
-                if (aIsFav && !bIsFav) return -1;
-                if (!aIsFav && bIsFav) return 1;
+                const aF = fav && (a.home_team.abbreviation === fav || a.away_team.abbreviation === fav);
+                const bF = fav && (b.home_team.abbreviation === fav || b.away_team.abbreviation === fav);
+                const aL = liveStates.has(a.state);
+                const bL = liveStates.has(b.state);
+                if (aF && !bF) return -1;
+                if (!aF && bF) return 1;
+                if (aL && !bL) return -1;
+                if (!aL && bL) return 1;
                 return 0;
             });
 
-            gamesList.innerHTML = sorted.map(game => {
+            ticker.innerHTML = sorted.map(game => {
+                const isLive = liveStates.has(game.state);
+                const isFinal = finalStates.has(game.state);
+                const isPinned = pinnedGameId === game.game_id;
                 const isFav = fav && (game.home_team.abbreviation === fav || game.away_team.abbreviation === fav);
-                const stateClass = game.state === 'Final' ? 'final' : game.state === 'Live' ? '' : 'preview';
-                const favBorder = isFav ? 'border-left: 3px solid #2563eb; padding-left: 8px;' : '';
-                const favLabel = isFav ? '<span style="color: #2563eb; font-size: 11px; font-weight: 600; margin-left: 6px;">★ FAV</span>' : '';
+                const showScore = isLive || isFinal;
+
+                let statusHtml = '';
+                if (isFinal) {
+                    statusHtml = '<div class="chip-status final">FINAL</div>';
+                } else if (isLive) {
+                    const half = game.inning?.half === 'top' ? '▲' : '▼';
+                    const num = game.inning?.num ?? '';
+                    statusHtml = `<div class="chip-status live"><span class="live-pip"></span>${half}${num}</div>`;
+                } else if (game.start_time) {
+                    const d = new Date(game.start_time);
+                    const t = d.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
+                    statusHtml = `<div class="chip-status">${t}</div>`;
+                }
+
+                const awayScore = showScore
+                    ? `<div class="chip-score">${game.away_team.score}</div>`
+                    : `<div class="chip-score no-score">-</div>`;
+                const homeScore = showScore
+                    ? `<div class="chip-score">${game.home_team.score}</div>`
+                    : `<div class="chip-score no-score">-</div>`;
+
                 return `
-                    <div class="game-item" style="${favBorder}">
-                        <div class="game-header">
-                            <span class="game-teams">${game.away_team.abbreviation} @ ${game.home_team.abbreviation}${favLabel}</span>
-                            <span class="game-state ${stateClass}">${game.state}</span>
+                    <div class="game-chip${isPinned ? ' pinned' : ''}${isFav ? ' fav-game' : ''}"
+                         onclick="pinGame(${game.game_id})"
+                         title="Click to show on scoreboard">
+                        ${isPinned ? '<div class="chip-on-board">ON BOARD</div>' : ''}
+                        <div class="chip-matchup">
+                            <div class="chip-team-block">
+                                <div class="chip-abbr">${game.away_team.abbreviation}</div>
+                                ${awayScore}
+                            </div>
+                            <div class="chip-divider">@</div>
+                            <div class="chip-team-block">
+                                <div class="chip-abbr">${game.home_team.abbreviation}</div>
+                                ${homeScore}
+                            </div>
                         </div>
-                        ${game.state !== 'Preview' ? `
-                            <div class="game-score">
-                                ${game.away_team.score} - ${game.home_team.score}
-                            </div>
-                        ` : ''}
-                        ${game.inning ? `
-                            <div style="color: #666; font-size: 12px;">
-                                ${game.inning.half} ${game.inning.ordinal}
-                            </div>
-                        ` : ''}
-                    </div>
-                `;
+                        ${statusHtml}
+                    </div>`;
             }).join('');
+        }
+
+        let pinnedGameId = null;
+
+        async function pinGame(gameId) {
+            try {
+                await fetch('/api/games/pin', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({game_id: gameId})
+                });
+                pinnedGameId = gameId;
+                fetchGames();
+                // Brief toast
+                const msg = gameId ? 'Game pinned to scoreboard' : 'Auto-select enabled';
+                showToast(msg);
+            } catch (e) {
+                console.error('Error pinning game:', e);
+            }
+        }
+
+        function showToast(msg) {
+            const el = document.createElement('div');
+            el.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#041e42;color:#4ade80;padding:8px 18px;border-radius:20px;font-size:13px;font-weight:600;z-index:9999;border:1px solid #4ade80;';
+            el.textContent = msg;
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 2000);
         }
 
         // Set display mode
