@@ -306,10 +306,18 @@
             <!-- Team Selection Card -->
             <div class="card">
                 <h2>Team Selection</h2>
-                <p style="color: #666; font-size: 13px; margin-bottom: 15px;">Select 1-5 teams to display and cycle through</p>
-                <select id="team-selector" multiple size="8" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px;">
-                    <!-- Populated via JavaScript -->
-                </select>
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Favorite Team <span style="color: #666; font-weight: 400; font-size: 13px;">(prioritized on scoreboard)</span></label>
+                    <select id="favorite-team" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        <!-- Populated via JavaScript -->
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Display Teams <span style="color: #666; font-weight: 400; font-size: 13px;">(select 1-5 to cycle through)</span></label>
+                    <select id="team-selector" multiple size="8" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px;">
+                        <!-- Populated via JavaScript -->
+                    </select>
+                </div>
                 <button class="btn" onclick="saveSelectedTeams()">Save Team Selection</button>
                 <div id="teams-alert" style="margin-top: 10px; display: none;"></div>
             </div>
@@ -438,12 +446,26 @@
                 return;
             }
 
-            gamesList.innerHTML = games.map(game => {
+            const fav = config.teams?.favorite;
+
+            // Sort: favorite team first, then live games, then others
+            const sorted = [...games].sort((a, b) => {
+                const aIsFav = fav && (a.home_team.abbreviation === fav || a.away_team.abbreviation === fav);
+                const bIsFav = fav && (b.home_team.abbreviation === fav || b.away_team.abbreviation === fav);
+                if (aIsFav && !bIsFav) return -1;
+                if (!aIsFav && bIsFav) return 1;
+                return 0;
+            });
+
+            gamesList.innerHTML = sorted.map(game => {
+                const isFav = fav && (game.home_team.abbreviation === fav || game.away_team.abbreviation === fav);
                 const stateClass = game.state === 'Final' ? 'final' : game.state === 'Live' ? '' : 'preview';
+                const favBorder = isFav ? 'border-left: 3px solid #2563eb; padding-left: 8px;' : '';
+                const favLabel = isFav ? '<span style="color: #2563eb; font-size: 11px; font-weight: 600; margin-left: 6px;">★ FAV</span>' : '';
                 return `
-                    <div class="game-item">
+                    <div class="game-item" style="${favBorder}">
                         <div class="game-header">
-                            <span class="game-teams">${game.away_team.abbreviation} @ ${game.home_team.abbreviation}</span>
+                            <span class="game-teams">${game.away_team.abbreviation} @ ${game.home_team.abbreviation}${favLabel}</span>
                             <span class="game-state ${stateClass}">${game.state}</span>
                         </div>
                         ${game.state !== 'Preview' ? `
@@ -552,18 +574,30 @@
             try {
                 const response = await fetch('/api/teams');
                 const teams = await response.json();
+
+                // Populate multi-select for preferred teams
                 const selector = document.getElementById('team-selector');
                 selector.innerHTML = teams.map(team =>
-                    `<option value="${team.abbr}">${team.name}</option>`
+                    `<option value="${team.abbr}">${team.name} (${team.abbr})</option>`
                 ).join('');
 
-                // Load currently selected teams from config
+                // Populate favorite team dropdown
+                const favSelector = document.getElementById('favorite-team');
+                favSelector.innerHTML = '<option value="">-- Select favorite team --</option>' +
+                    teams.map(team =>
+                        `<option value="${team.abbr}">${team.name} (${team.abbr})</option>`
+                    ).join('');
+
+                // Pre-select values from config
                 if (config.teams?.preferred_teams) {
                     Array.from(selector.options).forEach(option => {
                         if (config.teams.preferred_teams.includes(option.value)) {
                             option.selected = true;
                         }
                     });
+                }
+                if (config.teams?.favorite) {
+                    favSelector.value = config.teams.favorite;
                 }
             } catch (error) {
                 console.error('Error loading teams:', error);
@@ -574,9 +608,15 @@
         async function saveSelectedTeams() {
             const selector = document.getElementById('team-selector');
             const selected = Array.from(selector.selectedOptions).map(opt => opt.value);
+            const favorite = document.getElementById('favorite-team').value;
 
             if (selected.length < 1 || selected.length > 5) {
                 showTeamsAlert('Please select 1-5 teams', 'error');
+                return;
+            }
+
+            if (!favorite) {
+                showTeamsAlert('Please select a favorite team', 'error');
                 return;
             }
 
@@ -584,10 +624,11 @@
                 const response = await fetch('/api/teams/selected', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({teams: selected})
+                    body: JSON.stringify({teams: selected, favorite: favorite})
                 });
                 const data = await response.json();
-                showTeamsAlert(`Saved ${selected.length} teams successfully!`, 'success');
+                config.teams = {...config.teams, preferred_teams: selected, favorite: favorite};
+                showTeamsAlert(`Saved! Favorite: ${favorite}, Display: ${selected.join(', ')}`, 'success');
             } catch (error) {
                 showTeamsAlert('Error saving teams', 'error');
             }

@@ -42,18 +42,26 @@ class MLBAPIClient:
         self._cache[key] = (data, datetime.now())
 
     async def get_todays_games(self, team_id: Optional[int] = None) -> List[int]:
-        """Get today's game IDs."""
+        """Get today's game IDs, including spring training fallback."""
         cache_key = f"today_games_{team_id}"
         cached = self._get_cached(cache_key)
         if cached:
             return cached
 
-        # Use statsapi in thread pool to avoid blocking
         loop = asyncio.get_event_loop()
+
+        # Try regular season first (sportId=1)
         games = await loop.run_in_executor(
             None,
             lambda: statsapi.schedule(team=team_id) if team_id else statsapi.schedule()
         )
+
+        # Fall back to spring training (sportId=17) if no regular season games found
+        if not games:
+            games = await loop.run_in_executor(
+                None,
+                lambda: statsapi.schedule(team=team_id, sportId=17) if team_id else statsapi.schedule(sportId=17)
+            )
 
         game_ids = [g['game_id'] for g in games if g.get('game_id')]
         self._set_cache(cache_key, game_ids)

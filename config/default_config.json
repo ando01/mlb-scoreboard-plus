@@ -6,9 +6,9 @@
     "default_mode": "live_game"
   },
   "teams": {
-    "favorite": "NYY",
+    "favorite": "BOS",
     "display_all": true,
-    "preferred_teams": ["NYY", "BOS", "LAD"]
+    "preferred_teams": ["BOS"]
   },
   "modes": {
     "live_game": {

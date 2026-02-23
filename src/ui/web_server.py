@@ -330,6 +330,9 @@ async def set_selected_teams(data: dict):
         config = load_config()
         config.teams.preferred_teams = teams
         config.teams.display_all = False
+        favorite = data.get("favorite")
+        if favorite:
+            config.teams.favorite = favorite
         save_config(config)
 
         # Update running scoreboard
@@ -337,7 +340,7 @@ async def set_selected_teams(data: dict):
         if data_fetcher_instance:
             data_fetcher_instance.config = config
 
-        return {"status": "success", "teams": teams}
+        return {"status": "success", "teams": teams, "favorite": config.teams.favorite}
 
     raise HTTPException(status_code=500, detail="Scoreboard not running")
 
