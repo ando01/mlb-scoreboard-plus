@@ -110,7 +110,8 @@ async def get_status():
             "season_mode": scoreboard_instance.season_mode,
             "matrix_enabled": scoreboard_instance.matrix_enabled,
             "simulation_mode": data_fetcher_instance.simulate if data_fetcher_instance else False,
-            "games_count": len(data_fetcher_instance.get_games()) if data_fetcher_instance else 0
+            "games_count": len(data_fetcher_instance.get_games()) if data_fetcher_instance else 0,
+            "refresh_interval": data_fetcher_instance.refresh_interval if data_fetcher_instance else 5,
         }
     return {"running": False}
 
@@ -255,6 +256,28 @@ async def toggle_matrix(data: dict):
             "enabled": enabled,
             "message": f"LED matrix turned {'ON' if enabled else 'OFF'}"
         }
+
+    raise HTTPException(status_code=500, detail="Scoreboard not running")
+
+
+@app.get("/api/refresh-interval")
+async def get_refresh_interval():
+    """Get the current data refresh interval in seconds."""
+    if data_fetcher_instance:
+        return {"refresh_interval": data_fetcher_instance.refresh_interval}
+    return {"refresh_interval": 5}
+
+
+@app.post("/api/refresh-interval")
+async def set_refresh_interval(data: dict):
+    """Set the data refresh interval in seconds (5-60)."""
+    interval = data.get("interval")
+    if interval is None or not isinstance(interval, int) or not (5 <= interval <= 60):
+        raise HTTPException(status_code=400, detail="Interval must be an integer between 5 and 60")
+
+    if data_fetcher_instance:
+        data_fetcher_instance.refresh_interval = interval
+        return {"status": "success", "refresh_interval": interval}
 
     raise HTTPException(status_code=500, detail="Scoreboard not running")
 

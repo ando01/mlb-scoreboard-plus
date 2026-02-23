@@ -32,6 +32,8 @@ class DataFetcher:
         self._current_games: List[LiveGameData] = []
         self._standings: List[StandingsEntry] = []
 
+        self.refresh_interval: int = 5  # seconds between data fetches
+
         self._stop_event = threading.Event()
         self._thread: Optional[threading.Thread] = None
 
@@ -84,8 +86,8 @@ class DataFetcher:
                     self._fetch_standings()
             except Exception as e:
                 logger.error(f"Error in data fetcher thread: {e}", exc_info=True)
-            # Wait 10 s before next fetch, but wake immediately on stop.
-            self._stop_event.wait(10)
+            # Wait before next fetch, but wake immediately on stop.
+            self._stop_event.wait(self.refresh_interval)
         logger.info("Data fetcher thread exiting")
 
     # ------------------------------------------------------------------

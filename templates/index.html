@@ -339,6 +339,21 @@
 
                     <hr style="margin: 20px 0; border: 0; border-top: 1px solid #e5e7eb;">
 
+                    <!-- Data Refresh Interval -->
+                    <div class="form-group">
+                        <label>Data Refresh Interval - <span id="refresh-interval-value" style="color: #667eea; font-weight: 600;">5s</span></label>
+                        <input type="range" id="refresh-interval-slider" min="5" max="60" step="5" value="5"
+                               oninput="document.getElementById('refresh-interval-value').textContent = this.value + 's'"
+                               style="width: 100%; margin-bottom: 5px;">
+                        <div style="display: flex; justify-content: space-between; font-size: 12px; color: #999;">
+                            <span>5s (live game)</span><span>60s (pregame)</span>
+                        </div>
+                        <button class="btn" onclick="saveRefreshInterval()" style="background: #10b981; margin-top: 10px;">Apply Refresh Rate</button>
+                        <div id="refresh-alert" style="margin-top: 8px; display: none;"></div>
+                    </div>
+
+                    <hr style="margin: 20px 0; border: 0; border-top: 1px solid #e5e7eb;">
+
                     <!-- Color Quality Settings - Requires Restart -->
                     <div style="margin-bottom: 15px;">
                         <h3 style="font-size: 16px; margin-bottom: 10px; color: #666;">Color Quality (Restart Required)</h3>
@@ -408,6 +423,13 @@
                         btn.textContent = '🟢 Turn Display ON';
                         btn.style.background = '#10b981';
                     }
+                }
+
+                // Update refresh interval slider
+                if (data.refresh_interval !== undefined) {
+                    const slider = document.getElementById('refresh-interval-slider');
+                    slider.value = data.refresh_interval;
+                    document.getElementById('refresh-interval-value').textContent = data.refresh_interval + 's';
                 }
 
                 // Update simulation toggle button state
@@ -536,6 +558,29 @@
                 document.getElementById('rotation-enabled').checked = config.display?.rotation_enabled ?? true;
             } catch (error) {
                 console.error('Error loading config:', error);
+            }
+        }
+
+        // Save refresh interval
+        async function saveRefreshInterval() {
+            const interval = parseInt(document.getElementById('refresh-interval-slider').value);
+            try {
+                const response = await fetch('/api/refresh-interval', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({interval})
+                });
+                const data = await response.json();
+                const alert = document.getElementById('refresh-alert');
+                alert.textContent = `Refresh rate set to ${interval}s`;
+                alert.className = 'alert alert-success';
+                alert.style.display = 'block';
+                setTimeout(() => { alert.style.display = 'none'; }, 3000);
+            } catch (error) {
+                const alert = document.getElementById('refresh-alert');
+                alert.textContent = 'Error setting refresh rate';
+                alert.className = 'alert alert-error';
+                alert.style.display = 'block';
             }
         }
 
