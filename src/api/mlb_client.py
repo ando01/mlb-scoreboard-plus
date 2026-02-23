@@ -1,12 +1,10 @@
 """MLB Stats API client.
 
-HTTP calls use requests (sync) wrapped in run_in_executor so they run in
-threads rather than on the asyncio event loop.  This keeps the fetcher
-working correctly even when the LED-matrix render loop makes blocking
-hardware calls (canvas.swap / SwapOnVSync) that would otherwise starve
-the event loop and prevent aiohttp callbacks from ever firing.
+All HTTP calls are synchronous (requests library).  The client is called
+from DataFetcher's background thread, which is completely separate from
+the asyncio event loop.  This avoids the event-loop starvation caused by
+the LED-matrix canvas.swap() / SwapOnVSync() blocking the event loop.
 """
-import asyncio
 import requests
 from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any
@@ -23,20 +21,21 @@ _HTTP_TIMEOUT = 15  # seconds
 
 
 def _get_json(url: str, params: Optional[dict] = None) -> dict:
-    """Synchronous JSON fetch with timeout (runs in a thread via run_in_executor)."""
+    """Synchronous JSON fetch with timeout."""
     resp = requests.get(url, params=params, timeout=_HTTP_TIMEOUT)
     resp.raise_for_status()
     return resp.json()
 
 
 class MLBAPIClient:
-    """MLB Stats API client (thread-backed HTTP, async interface)."""
+    """MLB Stats API client (synchronous, runs in a background thread)."""
 
     def __init__(self, base_url: str = "https://statsapi.mlb.com"):
         self.base_url = base_url
         self._cache: Dict[str, tuple[Any, datetime]] = {}
         self._cache_duration = timedelta(seconds=10)
 
+    # No-op async context manager kept for call-site compatibility.
     async def __aenter__(self):
         return self
 
@@ -57,58 +56,48 @@ class MLBAPIClient:
     # Schedule
     # ------------------------------------------------------------------
 
-    async def _fetch_schedule(self, date: str, game_type: str = "E,S,R,F,D,L,W,C") -> List[int]:
-        """Fetch game PKs from /api/v1/schedule.
-
-        gameType codes: S=Spring Training, R=Regular Season, E=Exhibition,
-        F=Wild Card, D=Division Series, L=LCS, W=World Series, C=Championship.
-        Passing all types means one call covers spring training and regular
-        season without any fallback logic.
-        """
-        try:
-            url = f"{self.base_url}/api/v1/schedule"
-            params = {"sportId": 1, "date": date, "gameType": game_type}
-            loop = asyncio.get_event_loop()
-            data = await loop.run_in_executor(None, lambda: _get_json(url, params))
-            game_ids = [
-                game["gamePk"]
-                for date_entry in data.get("dates", [])
-                for game in date_entry.get("games", [])
-                if game.get("gamePk")
-            ]
-            logger.info(f"Schedule date={date} gameType={game_type}: {len(game_ids)} games {game_ids}")
-            return game_ids
-        except Exception as e:
-            logger.error(f"Schedule fetch failed (date={date}): {e}", exc_info=True)
-            return []
-
-    async def get_todays_games(self, team_id: Optional[int] = None) -> List[int]:
-        """Get today's game PKs across all game types (regular season, spring training, playoffs)."""
+    def get_todays_games(self) -> List[int]:
+        """Return today's game PKs across all game types (sync)."""
         today = datetime.now().strftime("%Y-%m-%d")
         cache_key = f"today_games_{today}"
         cached = self._get_cached(cache_key)
         if cached is not None:
             return cached
 
-        game_ids = await self._fetch_schedule(date=today)
-        self._set_cache(cache_key, game_ids)
-        return game_ids
+        try:
+            url = f"{self.base_url}/api/v1/schedule"
+            params = {
+                "sportId": 1,
+                "date": today,
+                "gameType": "E,S,R,F,D,L,W,C",  # all types inc. spring training
+            }
+            data = _get_json(url, params)
+            game_ids = [
+                game["gamePk"]
+                for date_entry in data.get("dates", [])
+                for game in date_entry.get("games", [])
+                if game.get("gamePk")
+            ]
+            logger.info(f"Schedule {today}: {len(game_ids)} games {game_ids}")
+            self._set_cache(cache_key, game_ids)
+            return game_ids
+        except Exception as e:
+            logger.error(f"Schedule fetch failed: {e}", exc_info=True)
+            return []
 
     # ------------------------------------------------------------------
     # Game feed
     # ------------------------------------------------------------------
 
-    async def get_game_data(self, game_id: int) -> LiveGameData:
-        """Fetch and parse a single game's live feed."""
+    def get_game_data(self, game_id: int) -> LiveGameData:
+        """Fetch and parse a single game's live feed (sync)."""
         cache_key = f"game_{game_id}"
         cached = self._get_cached(cache_key)
         if cached is not None:
             return cached
 
         url = f"{self.base_url}/api/v1.1/game/{game_id}/feed/live"
-        loop = asyncio.get_event_loop()
-        game_data = await loop.run_in_executor(None, lambda: _get_json(url))
-
+        game_data = _get_json(url)
         parsed = self._parse_game_data(game_data)
         self._set_cache(cache_key, parsed)
         return parsed
@@ -246,8 +235,8 @@ class MLBAPIClient:
     # Standings
     # ------------------------------------------------------------------
 
-    async def get_standings(self, division: str) -> List[StandingsEntry]:
-        """Fetch division standings from /api/v1/standings."""
+    def get_standings(self, division: str) -> List[StandingsEntry]:
+        """Fetch division standings (sync)."""
         cache_key = f"standings_{division}"
         cached = self._get_cached(cache_key)
         if cached is not None:
@@ -258,8 +247,7 @@ class MLBAPIClient:
             year = datetime.now().year
             url = f"{self.base_url}/api/v1/standings"
             params = {"leagueId": "103,104", "season": year, "hydrate": "team"}
-            loop = asyncio.get_event_loop()
-            data = await loop.run_in_executor(None, lambda: _get_json(url, params))
+            data = _get_json(url, params)
 
             for record in data.get("records", []):
                 div_name = record.get("division", {}).get("name", "")
