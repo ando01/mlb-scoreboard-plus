@@ -1,16 +1,17 @@
-"""MLB Stats API client with async support."""
-import asyncio
+"""MLB Stats API client — fully async via aiohttp (no statsapi library)."""
 import aiohttp
 from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any
 import logging
-import statsapi
 
-logger = logging.getLogger(__name__)
 from ..models.game import (
     LiveGameData, GameState, parse_game_state, Team, Inning, Count,
     BaseRunner, Play, PlayerStats, StandingsEntry
 )
+
+logger = logging.getLogger(__name__)
+
+_TIMEOUT = aiohttp.ClientTimeout(total=15)
 
 
 class MLBAPIClient:
@@ -23,17 +24,14 @@ class MLBAPIClient:
         self._cache_duration = timedelta(seconds=10)
 
     async def __aenter__(self):
-        """Async context manager entry."""
         self.session = aiohttp.ClientSession()
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """Async context manager exit."""
         if self.session:
             await self.session.close()
 
     def _get_cached(self, key: str) -> Optional[Any]:
-        """Get cached data if still valid."""
         if key in self._cache:
             data, timestamp = self._cache[key]
             if datetime.now() - timestamp < self._cache_duration:
@@ -41,172 +39,181 @@ class MLBAPIClient:
         return None
 
     def _set_cache(self, key: str, data: Any):
-        """Cache data with timestamp."""
         self._cache[key] = (data, datetime.now())
 
-    async def _fetch_schedule_direct(self, sport_id: int, date: str) -> List[int]:
-        """Fetch game IDs directly from MLB Stats API (used as reliable fallback)."""
+    # ------------------------------------------------------------------
+    # Schedule
+    # ------------------------------------------------------------------
+
+    async def _fetch_schedule(self, sport_id: int, date: str) -> List[int]:
+        """Fetch game PKs from /api/v1/schedule for a given sportId and date."""
         try:
             url = f"{self.base_url}/api/v1/schedule"
             params = {"sportId": sport_id, "date": date}
-            async with self.session.get(url, params=params) as resp:
-                data = await resp.json()
-                game_ids = []
-                for date_entry in data.get("dates", []):
-                    for game in date_entry.get("games", []):
-                        gid = game.get("gamePk")
-                        if gid:
-                            game_ids.append(gid)
-                logger.info(f"Direct API sportId={sport_id} for {date}: {len(game_ids)} games -> {game_ids}")
-                return game_ids
+            async with self.session.get(url, params=params, timeout=_TIMEOUT) as resp:
+                data = await resp.json(content_type=None)
+            game_ids = [
+                game["gamePk"]
+                for date_entry in data.get("dates", [])
+                for game in date_entry.get("games", [])
+                if game.get("gamePk")
+            ]
+            logger.info(f"Schedule sportId={sport_id} date={date}: {len(game_ids)} games {game_ids}")
+            return game_ids
         except Exception as e:
-            logger.error(f"Direct schedule fetch failed (sportId={sport_id}): {e}", exc_info=True)
+            logger.error(f"Schedule fetch failed (sportId={sport_id} date={date}): {e}", exc_info=True)
             return []
 
     async def get_todays_games(self, team_id: Optional[int] = None) -> List[int]:
-        """Get today's game IDs, including spring training fallback."""
-        cache_key = f"today_games_{team_id}"
+        """Get today's game PKs. Falls back to spring training (sportId=17)."""
+        today = datetime.now().strftime("%Y-%m-%d")
+        cache_key = f"today_games_{today}"
         cached = self._get_cached(cache_key)
-        if cached:
+        if cached is not None:
             return cached
 
-        today = datetime.now().strftime("%Y-%m-%d")
-        loop = asyncio.get_event_loop()
+        # Regular season first
+        game_ids = await self._fetch_schedule(sport_id=1, date=today)
 
-        # Try regular season via statsapi library
-        try:
-            games = await loop.run_in_executor(
-                None,
-                lambda: statsapi.schedule(date=today, team=team_id) if team_id
-                        else statsapi.schedule(date=today)
-            )
-            logger.info(f"statsapi regular season for {today}: {len(games)} games")
-        except Exception as e:
-            logger.error(f"statsapi regular season fetch error: {e}", exc_info=True)
-            games = []
-
-        game_ids = [g["game_id"] for g in games if g.get("game_id")]
-
-        # Fall back to spring training if no regular season games
+        # Spring training fallback
         if not game_ids:
-            logger.info("No regular season games — trying spring training (sportId=17) via direct API")
-            game_ids = await self._fetch_schedule_direct(sport_id=17, date=today)
+            logger.info("No regular-season games today — checking spring training (sportId=17)")
+            game_ids = await self._fetch_schedule(sport_id=17, date=today)
 
         self._set_cache(cache_key, game_ids)
         return game_ids
 
+    # ------------------------------------------------------------------
+    # Game feed
+    # ------------------------------------------------------------------
+
+    async def get_game_data(self, game_id: int) -> LiveGameData:
+        """Fetch and parse a single game's live feed."""
+        cache_key = f"game_{game_id}"
+        cached = self._get_cached(cache_key)
+        if cached is not None:
+            return cached
+
+        url = f"{self.base_url}/api/v1.1/game/{game_id}/feed/live"
+        async with self.session.get(url, timeout=_TIMEOUT) as resp:
+            game_data = await resp.json(content_type=None)
+
+        parsed = self._parse_game_data(game_data)
+        self._set_cache(cache_key, parsed)
+        return parsed
+
     def _parse_game_data(self, game_data: dict) -> LiveGameData:
-        """Parse raw game data into LiveGameData model."""
-        game_pk = game_data['gamePk']
-        game_info = game_data.get('gameData', {})
-        live_data = game_data.get('liveData', {})
+        """Parse raw game feed into LiveGameData."""
+        game_pk = game_data["gamePk"]
+        game_info = game_data.get("gameData", {})
+        live_data = game_data.get("liveData", {})
 
         # Game state
-        status = game_info.get('status', {})
-        abstract_state = status.get('abstractGameState', 'Preview')
-        detailed_state = status.get('detailedState', abstract_state)
+        status = game_info.get("status", {})
+        abstract_state = status.get("abstractGameState", "Preview")
+        detailed_state = status.get("detailedState", abstract_state)
         state = parse_game_state(detailed_state, abstract_state)
 
         # Start time
         try:
             start_time = datetime.fromisoformat(
-                game_info.get('datetime', {}).get('dateTime', '').replace('Z', '+00:00')
+                game_info.get("datetime", {}).get("dateTime", "").replace("Z", "+00:00")
             )
         except (ValueError, TypeError):
             start_time = datetime.now()
 
         # Teams
-        teams_data = game_info.get('teams', {})
-        home = teams_data.get('home', {})
-        away = teams_data.get('away', {})
+        teams_data = game_info.get("teams", {})
+        home = teams_data.get("home", {})
+        away = teams_data.get("away", {})
 
-        line_score = live_data.get('linescore', {})
-        home_score = line_score.get('teams', {}).get('home', {})
-        away_score = line_score.get('teams', {}).get('away', {})
+        line_score = live_data.get("linescore", {})
+        home_score = line_score.get("teams", {}).get("home", {})
+        away_score = line_score.get("teams", {}).get("away", {})
 
         home_team = Team(
-            id=home.get('id', 0),
-            name=home.get('name', 'Unknown'),
-            abbreviation=home.get('abbreviation', 'UNK'),
-            score=home_score.get('runs', 0),
-            hits=home_score.get('hits', 0),
-            errors=home_score.get('errors', 0),
-            is_winner=line_score.get('isTopInning', False) == False
+            id=home.get("id", 0),
+            name=home.get("name", "Unknown"),
+            abbreviation=home.get("abbreviation", "UNK"),
+            score=home_score.get("runs", 0),
+            hits=home_score.get("hits", 0),
+            errors=home_score.get("errors", 0),
+            is_winner=line_score.get("isTopInning", False) is False,
         )
-
         away_team = Team(
-            id=away.get('id', 0),
-            name=away.get('name', 'Unknown'),
-            abbreviation=away.get('abbreviation', 'UNK'),
-            score=away_score.get('runs', 0),
-            hits=away_score.get('hits', 0),
-            errors=away_score.get('errors', 0),
-            is_winner=line_score.get('isTopInning', False) == True
+            id=away.get("id", 0),
+            name=away.get("name", "Unknown"),
+            abbreviation=away.get("abbreviation", "UNK"),
+            score=away_score.get("runs", 0),
+            hits=away_score.get("hits", 0),
+            errors=away_score.get("errors", 0),
+            is_winner=line_score.get("isTopInning", False) is True,
         )
 
         # Inning
-        inning_num = line_score.get('currentInning', 1)
-        inning_half = "top" if line_score.get('isTopInning', True) else "bottom"
+        inning_num = line_score.get("currentInning", 1)
+        inning_half = "top" if line_score.get("isTopInning", True) else "bottom"
         inning = Inning(
             num=inning_num,
-            ordinal=line_score.get('currentInningOrdinal', f'{inning_num}th'),
-            half=inning_half
+            ordinal=line_score.get("currentInningOrdinal", f"{inning_num}th"),
+            half=inning_half,
         )
 
         # Count
         count = Count(
-            balls=line_score.get('balls', 0),
-            strikes=line_score.get('strikes', 0),
-            outs=line_score.get('outs', 0)
+            balls=line_score.get("balls", 0),
+            strikes=line_score.get("strikes", 0),
+            outs=line_score.get("outs", 0),
         )
 
         # Runners
-        offense = line_score.get('offense', {})
+        offense = line_score.get("offense", {})
         runners = BaseRunner(
-            first=offense.get('first', {}).get('fullName') if offense.get('first') else None,
-            second=offense.get('second', {}).get('fullName') if offense.get('second') else None,
-            third=offense.get('third', {}).get('fullName') if offense.get('third') else None
+            first=offense.get("first", {}).get("fullName") if offense.get("first") else None,
+            second=offense.get("second", {}).get("fullName") if offense.get("second") else None,
+            third=offense.get("third", {}).get("fullName") if offense.get("third") else None,
         )
 
         # Current players
         current_batter = None
-        if offense.get('batter'):
-            batter = offense['batter']
+        if offense.get("batter"):
+            b = offense["batter"]
             current_batter = PlayerStats(
-                name=batter.get('fullName', 'Unknown'),
-                avg=str(batter.get('avg', '.000'))
+                name=b.get("fullName", "Unknown"),
+                avg=str(b.get("avg", ".000")),
             )
 
         current_pitcher = None
-        if offense.get('pitcher'):
-            pitcher = offense['pitcher']
+        if offense.get("pitcher"):
+            p = offense["pitcher"]
             current_pitcher = PlayerStats(
-                name=pitcher.get('fullName', 'Unknown'),
-                era=str(pitcher.get('era', '0.00'))
+                name=p.get("fullName", "Unknown"),
+                era=str(p.get("era", "0.00")),
             )
 
         # Last play
         last_play = None
-        plays = live_data.get('plays', {}).get('allPlays', [])
+        plays = live_data.get("plays", {}).get("allPlays", [])
         if plays:
             last = plays[-1]
-            result = last.get('result', {})
+            result = last.get("result", {})
             last_play = Play(
-                description=result.get('description', ''),
-                event=result.get('event', ''),
-                is_scoring_play=result.get('isScoringPlay', False),
-                rbi=result.get('rbi', 0)
+                description=result.get("description", ""),
+                event=result.get("event", ""),
+                is_scoring_play=result.get("isScoringPlay", False),
+                rbi=result.get("rbi", 0),
             )
 
-        # Probable pitchers (for preview games)
+        # Probable pitchers (preview / pregame / scheduled)
         prob_home = None
         prob_away = None
-        if state in [GameState.PREVIEW, GameState.PREGAME]:
-            prob_pitchers = game_info.get('probablePitchers', {})
-            if prob_pitchers.get('home'):
-                prob_home = prob_pitchers['home'].get('fullName')
-            if prob_pitchers.get('away'):
-                prob_away = prob_pitchers['away'].get('fullName')
+        preview_states = {GameState.PREVIEW, GameState.PREGAME, GameState.SCHEDULED}
+        if state in preview_states:
+            prob_pitchers = game_info.get("probablePitchers", {})
+            if prob_pitchers.get("home"):
+                prob_home = prob_pitchers["home"].get("fullName")
+            if prob_pitchers.get("away"):
+                prob_away = prob_pitchers["away"].get("fullName")
 
         return LiveGameData(
             game_id=game_pk,
@@ -221,53 +228,49 @@ class MLBAPIClient:
             current_pitcher=current_pitcher,
             last_play=last_play,
             probable_pitcher_home=prob_home,
-            probable_pitcher_away=prob_away
+            probable_pitcher_away=prob_away,
         )
 
-    async def get_game_data(self, game_id: int) -> LiveGameData:
-        """Get live game data."""
-        cache_key = f"game_{game_id}"
-        cached = self._get_cached(cache_key)
-        if cached:
-            return cached
-
-        # Fetch game data using statsapi
-        loop = asyncio.get_event_loop()
-        game_data = await loop.run_in_executor(
-            None,
-            lambda: statsapi.get('game', {'gamePk': game_id})
-        )
-
-        parsed = self._parse_game_data(game_data)
-        self._set_cache(cache_key, parsed)
-        return parsed
+    # ------------------------------------------------------------------
+    # Standings
+    # ------------------------------------------------------------------
 
     async def get_standings(self, division: str) -> List[StandingsEntry]:
-        """Get division standings."""
+        """Fetch division standings from /api/v1/standings."""
         cache_key = f"standings_{division}"
         cached = self._get_cached(cache_key)
-        if cached:
+        if cached is not None:
             return cached
 
-        loop = asyncio.get_event_loop()
-        standings_data = await loop.run_in_executor(
-            None,
-            lambda: statsapi.standings_data(leagueId="103,104")
-        )
+        entries: List[StandingsEntry] = []
+        try:
+            year = datetime.now().year
+            url = f"{self.base_url}/api/v1/standings"
+            params = {"leagueId": "103,104", "season": year, "hydrate": "team"}
+            async with self.session.get(url, params=params, timeout=_TIMEOUT) as resp:
+                data = await resp.json(content_type=None)
 
-        entries = []
-        for div_data in standings_data.values():
-            if division.lower() in div_data.get('div_name', '').lower():
-                for team in div_data.get('teams', []):
+            for record in data.get("records", []):
+                div_name = record.get("division", {}).get("name", "")
+                if division.lower() not in div_name.lower():
+                    continue
+                for tr in record.get("teamRecords", []):
+                    team = tr.get("team", {})
+                    abbr = (
+                        team.get("abbreviation")
+                        or team.get("clubName", "???")
+                    )
                     entries.append(StandingsEntry(
-                        team_name=team.get('name', ''),
-                        team_abbr=team.get('team_abbr', ''),
-                        wins=team.get('w', 0),
-                        losses=team.get('l', 0),
-                        pct=team.get('pct', '.000'),
-                        gb=team.get('gb', '-'),
-                        division=div_data.get('div_name', '')
+                        team_name=team.get("name", ""),
+                        team_abbr=abbr,
+                        wins=tr.get("wins", 0),
+                        losses=tr.get("losses", 0),
+                        pct=tr.get("winningPercentage", ".000"),
+                        gb=str(tr.get("gamesBack", "-")),
+                        division=div_name,
                     ))
+        except Exception as e:
+            logger.error(f"Standings fetch failed for '{division}': {e}", exc_info=True)
 
         self._set_cache(cache_key, entries)
         return entries
