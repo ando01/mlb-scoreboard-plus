@@ -166,29 +166,45 @@ class MLBAPIClient:
             outs=line_score.get("outs", 0),
         )
 
+        # Build a player-id → season stats map from the boxscore so we can
+        # look up AVG and ERA without extra API calls.
+        all_players: Dict[int, dict] = {}
+        boxscore = live_data.get("boxscore", {})
+        for side in ("home", "away"):
+            for pdata in boxscore.get("teams", {}).get(side, {}).get("players", {}).values():
+                pid = pdata.get("person", {}).get("id")
+                if pid:
+                    all_players[pid] = pdata
+
         # Runners
         offense = line_score.get("offense", {})
+        defense = line_score.get("defense", {})
         runners = BaseRunner(
             first=offense.get("first", {}).get("fullName") if offense.get("first") else None,
             second=offense.get("second", {}).get("fullName") if offense.get("second") else None,
             third=offense.get("third", {}).get("fullName") if offense.get("third") else None,
         )
 
-        # Current players
+        # Current batter — comes from linescore.offense
         current_batter = None
         if offense.get("batter"):
             b = offense["batter"]
+            bstats = all_players.get(b.get("id"), {})
+            avg = bstats.get("seasonStats", {}).get("batting", {}).get("avg", ".000")
             current_batter = PlayerStats(
                 name=b.get("fullName", "Unknown"),
-                avg=str(b.get("avg", ".000")),
+                avg=str(avg),
             )
 
+        # Current pitcher — comes from linescore.defense (NOT offense)
         current_pitcher = None
-        if offense.get("pitcher"):
-            p = offense["pitcher"]
+        if defense.get("pitcher"):
+            p = defense["pitcher"]
+            pstats = all_players.get(p.get("id"), {})
+            era = pstats.get("seasonStats", {}).get("pitching", {}).get("era", "0.00")
             current_pitcher = PlayerStats(
                 name=p.get("fullName", "Unknown"),
-                era=str(p.get("era", "0.00")),
+                era=str(era),
             )
 
         # Last play
