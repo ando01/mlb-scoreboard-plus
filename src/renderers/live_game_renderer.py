@@ -284,7 +284,7 @@ class LiveGameRenderer(BaseRenderer):
 
                 # Draw arrow and number together (smaller font), same row as pitch count
                 inning_text = f"{arrow}{inning_num}"
-                self.canvas.draw_text(45, 43, inning_text, *arrow_color, font=self.small_font)
+                self.canvas.draw_text(62, 43, inning_text, *arrow_color, font=self.small_font)
 
             # Outs as smaller squares on right
             if self.config.modes.live_game.show_outs:
