@@ -564,7 +564,7 @@
                     <h2>Display Settings</h2>
                     <span class="collapse-icon" id="display-settings-icon">▼</span>
                 </div>
-                <div class="collapsible-content" id="display-settings-content" style="max-height: 800px;">
+                <div class="collapsible-content" id="display-settings-content" style="max-height: 2000px;">
 
                     <!-- Brightness - Live Update -->
                     <div class="form-group">
@@ -671,6 +671,10 @@
                         <input type="checkbox" id="rotation-enabled" checked onchange="updateConfig()">
                         <label for="rotation-enabled">Auto-rotate display</label>
                     </div>
+
+                    <hr style="margin: 20px 0; border: 0; border-top: 1px solid #e5e7eb;">
+
+                    <button class="btn" onclick="restartScoreboard()" style="background: #ef4444; width: 100%;">🔄 Restart Scoreboard</button>
                 </div>
             </div>
         </div>
