@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from .models.config import AppConfig
 from .models.game import GameState
 
-_LIVE_STATES = {GameState.LIVE, GameState.IN_PROGRESS, GameState.WARMUP, GameState.PREGAME}
+_LIVE_STATES = {GameState.LIVE, GameState.IN_PROGRESS, GameState.WARMUP}
 from .api.data_fetcher import DataFetcher
 from .api.news_fetcher import NewsFetcher
 from .renderers import Canvas, LiveGameRenderer, StandingsRenderer, StatsRenderer, NewsRenderer

@@ -701,7 +701,7 @@
             }
 
             const fav = config.teams?.favorite;
-            const liveStates = new Set(['Live', 'In Progress', 'Warmup', 'Pre-Game']);
+            const liveStates = new Set(['Live', 'In Progress', 'Warmup']);
             const finalStates = new Set(['Final', 'Game Over']);
 
             const sorted = [...games].sort((a, b) => {
