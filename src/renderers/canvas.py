@@ -2,6 +2,10 @@
 import os
 from typing import Optional, Tuple
 
+# Sentinel returned by load_font() in dev/emulator mode so draw_text()
+# can distinguish small-font calls from default-font calls.
+_SMALL_FONT = object()
+
 
 class Canvas:
     """Abstraction layer for LED matrix canvas."""
@@ -100,7 +104,7 @@ class Canvas:
     def load_font(self, font_name: str = "7x13.bdf"):
         """Load a specific BDF font."""
         if self._dev_mode:
-            return None
+            return _SMALL_FONT  # sentinel: signals small-font rendering in preview
 
         try:
             from rgbmatrix import graphics
@@ -124,9 +128,15 @@ class Canvas:
 
     def draw_text(self, x: int, y: int, text: str, r: int, g: int, b: int, font=None):
         """Draw text on canvas."""
+        # True when a small font (5x7) was requested vs the default 7x13.
+        # On hardware: font is a real graphics.Font object.
+        # In dev mode: font is the _SMALL_FONT sentinel returned by load_font().
+        small = font is not None
+
         if not self._dev_mode and hasattr(self._canvas, 'SetPixel'):
             from rgbmatrix import graphics
-            if font is None:
+            # Resolve default font; strip the dev-mode sentinel if it somehow arrives
+            if font is None or font is _SMALL_FONT:
                 font = graphics.Font()
                 # Use BDF fonts - work much better on LED matrices than TrueType
                 # Try multiple common installation paths (absolute paths work with sudo)
@@ -158,25 +168,30 @@ class Canvas:
 
             color = graphics.Color(r, g, b)
             result = graphics.DrawText(self._canvas, font, x, y, color, text)
-            self._draw_text_to_buffer(x, y, text, r, g, b)
+            self._draw_text_to_buffer(x, y, text, r, g, b, small=small)
             return result
         else:
             # Mock implementation
-            self._draw_text_to_buffer(x, y, text, r, g, b)
+            self._draw_text_to_buffer(x, y, text, r, g, b, small=small)
             return len(text) * 6
 
-    def _draw_text_to_buffer(self, x: int, y: int, text: str, r: int, g: int, b: int):
-        """Render text into _frame_buffer for web UI preview using Pillow."""
+    def _draw_text_to_buffer(self, x: int, y: int, text: str, r: int, g: int, b: int, small: bool = False):
+        """Render text into _frame_buffer for web UI preview using Pillow.
+
+        small=True  → mirrors the 5x7 BDF font (size 7, baseline offset 6)
+        small=False → mirrors the 7x13 BDF font (size 11, baseline offset 11)
+        """
         try:
             from PIL import Image, ImageDraw, ImageFont
+            pil_size = 7 if small else 11
+            baseline_offset = 6 if small else 11
             try:
-                # Pillow >= 10: load_default accepts a size; match the 7x13 LED font height
-                pil_font = ImageFont.load_default(size=11)
+                # Pillow >= 10 accepts a size parameter
+                pil_font = ImageFont.load_default(size=pil_size)
             except TypeError:
                 pil_font = ImageFont.load_default()
-            # rgbmatrix DrawText y is the text baseline; Pillow draw.text y is the top.
-            # For the 7x13 BDF font the ascent is ~11px, so top = y - 11.
-            top = y - 11
+            # rgbmatrix DrawText y is the baseline; Pillow draw.text y is the top.
+            top = y - baseline_offset
             img = Image.new('RGB', (self.width, self.height), (0, 0, 0))
             draw = ImageDraw.Draw(img)
             draw.text((x, top), text, fill=(r, g, b), font=pil_font)

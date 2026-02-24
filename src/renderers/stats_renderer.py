@@ -27,9 +27,6 @@ class StatsRenderer(BaseRenderer):
             self.canvas.draw_text(3, 29, batter_name, *Colors.WHITE, font=self.small_font)
 
             y = 38
-            if game.current_batter.avg:
-                self.canvas.draw_text(3, y, f"AVG: {game.current_batter.avg}", *Colors.WHITE, font=self.small_font)
-                y += 9
             if game.current_batter.hr is not None:
                 self.canvas.draw_text(3, y, f"HR: {game.current_batter.hr}", *Colors.WHITE, font=self.small_font)
                 y += 9
@@ -42,9 +39,6 @@ class StatsRenderer(BaseRenderer):
             self.canvas.draw_text(68, 29, pitcher_name, *Colors.WHITE, font=self.small_font)
 
             y = 38
-            if game.current_pitcher.era:
-                self.canvas.draw_text(68, y, f"ERA: {game.current_pitcher.era}", *Colors.WHITE, font=self.small_font)
-                y += 9
             if game.current_pitcher.so is not None:
                 self.canvas.draw_text(68, y, f"SO: {game.current_pitcher.so}", *Colors.WHITE, font=self.small_font)
 

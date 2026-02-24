@@ -174,11 +174,6 @@ class LiveGameRenderer(BaseRenderer):
             pitcher_text = f"P:{pitcher_name}"
             self.canvas.draw_text(2, 34, pitcher_text, *Colors.WHITE, font=self.small_font)
 
-            # Add ERA underneath if available
-            if game.current_pitcher.era:
-                era_text = f"E: {game.current_pitcher.era}"
-                self.canvas.draw_text(2, 43, era_text, *Colors.YELLOW, font=self.small_font)
-
             # Show either pitch count (before pitch) or pitch result (after pitch)
             if game.show_pitch_result:
                 # Show pitch type and velocity after pitch is thrown
@@ -254,11 +249,6 @@ class LiveGameRenderer(BaseRenderer):
             # Batter name and count on same line
             ab_text = f"B:{batter_name} {count_text}"
             self.canvas.draw_text(2, 54, ab_text, *Colors.WHITE, font=self.small_font)
-
-            # Add batting average underneath if available
-            if game.current_batter.avg:
-                avg_text = f"BA: {game.current_batter.avg}"
-                self.canvas.draw_text(2, 63, avg_text, *Colors.YELLOW, font=self.small_font)
 
             # INNING DISPLAY: Show inning number with arrow near outs
             if game.inning:
