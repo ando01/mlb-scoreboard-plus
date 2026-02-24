@@ -1,6 +1,29 @@
 """Canvas abstraction for LED matrix."""
 import os
+from pathlib import Path
 from typing import Optional, Tuple
+
+# Project root is three levels up from this file (src/renderers/canvas.py)
+_PROJECT_ROOT = Path(__file__).parent.parent.parent
+
+
+def _font_paths(font_name: str) -> list:
+    """Return candidate BDF font paths in priority order.
+
+    Checks the project-bundled copy first so the process works correctly
+    whether run as root via systemd or interactively via sudo.
+    """
+    username = os.environ.get('SUDO_USER', os.environ.get('USER', 'pi'))
+    return [
+        # Project-local copy (works regardless of run-as user)
+        str(_PROJECT_ROOT / "rpi-rgb-led-matrix" / "fonts" / font_name),
+        # Custom override via env var
+        os.path.join(os.environ.get('LED_FONT_PATH', ''), font_name) if os.environ.get('LED_FONT_PATH') else None,
+        # User home fallbacks
+        f"/home/{username}/rpi-rgb-led-matrix/fonts/{font_name}",
+        f"/home/{username}/mlb-scoreboard-plus/rpi-rgb-led-matrix/fonts/{font_name}",
+        f"/usr/local/share/fonts/{font_name}",
+    ]
 
 # Sentinel returned by load_font() in dev/emulator mode so draw_text()
 # can distinguish small-font calls from default-font calls.
@@ -109,19 +132,13 @@ class Canvas:
         try:
             from rgbmatrix import graphics
             font = graphics.Font()
-            username = os.environ.get('SUDO_USER', os.environ.get('USER', 'pi'))
-            font_paths = [
-                f"/home/{username}/rpi-rgb-led-matrix/fonts/{font_name}",
-                f"/home/{username}/mlb-scoreboard-plus/rpi-rgb-led-matrix/fonts/{font_name}",
-                f"/usr/local/share/fonts/{font_name}",
-            ]
-            for path in font_paths:
-                try:
-                    if os.path.exists(path):
+            for path in _font_paths(font_name):
+                if path and os.path.exists(path):
+                    try:
                         font.LoadFont(path)
                         return font
-                except Exception:
-                    continue
+                    except Exception:
+                        continue
         except ImportError:
             pass
         return None
@@ -138,32 +155,27 @@ class Canvas:
             # Resolve default font; strip the dev-mode sentinel if it somehow arrives
             if font is None or font is _SMALL_FONT:
                 font = graphics.Font()
-                # Use BDF fonts - work much better on LED matrices than TrueType
-                # Try multiple common installation paths (absolute paths work with sudo)
-                username = os.environ.get('SUDO_USER', os.environ.get('USER', 'pi'))
-                font_paths = [
-                    f"/home/{username}/rpi-rgb-led-matrix/fonts/7x13.bdf",
-                    f"/home/{username}/mlb-scoreboard-plus/rpi-rgb-led-matrix/fonts/7x13.bdf",
-                    "/usr/local/share/fonts/7x13.bdf",
-                ]
                 loaded = False
-                for path in font_paths:
-                    try:
-                        if os.path.exists(path):
+                for path in _font_paths("7x13.bdf"):
+                    if path and os.path.exists(path):
+                        try:
                             font.LoadFont(path)
                             loaded = True
                             break
-                    except Exception as e:
-                        continue
+                        except Exception:
+                            continue
 
                 if not loaded:
-                    # Fallback: try to find any BDF font
+                    # Last resort: search the project tree for any BDF font
                     import glob
-                    bdf_fonts = glob.glob(f"/home/{username}/*/fonts/*.bdf")
+                    bdf_fonts = (
+                        glob.glob(str(_PROJECT_ROOT / "*" / "fonts" / "*.bdf")) +
+                        glob.glob(str(_PROJECT_ROOT / "*" / "*" / "fonts" / "*.bdf"))
+                    )
                     if bdf_fonts:
                         try:
                             font.LoadFont(bdf_fonts[0])
-                        except:
+                        except Exception:
                             pass
 
             color = graphics.Color(r, g, b)
