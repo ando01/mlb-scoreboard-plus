@@ -194,46 +194,98 @@ class LiveGameRenderer(BaseRenderer):
         self.canvas.draw_text(96, 23, home_h, *Colors.WHITE)
         self.canvas.draw_text(114, 23, home_e, *Colors.WHITE)
 
-        # MIDDLE SECTION: P: [pitcher name] with ERA and pitch info below
+        # ── LEFT COLUMN ────────────────────────────────────────────────────
+        # Row y=34 — Pitcher name
         if game.current_pitcher:
             pitcher_name = self._format_name(game.current_pitcher.name)
-            pitcher_text = f"P:{pitcher_name}"
-            self.canvas.draw_text(2, 34, pitcher_text, *Colors.WHITE, font=self.small_font)
+            self.canvas.draw_text(2, 34, f"P:{pitcher_name}", *Colors.WHITE, font=self.small_font)
 
-            # Show either pitch count (before pitch) or pitch result (after pitch)
-            if game.show_pitch_result:
-                # Show pitch type and velocity after pitch is thrown
-                if game.last_pitch_type or game.last_pitch_speed:
-                    pitch_info = ""
-                    if game.last_pitch_type:
-                        pitch_info = game.last_pitch_type[:2].upper()  # Abbreviate pitch type (e.g., FF, SL)
-                    if game.last_pitch_speed:
-                        speed = f"{int(game.last_pitch_speed)}mph"
-                        pitch_info = f"{pitch_info} {speed}" if pitch_info else speed
-                    if pitch_info:
-                        self.canvas.draw_text(2, 43, pitch_info, *Colors.CYAN, font=self.small_font)
+        # Row y=43 — Pitch count or last pitch type/speed
+        if game.current_pitcher:
+            if game.show_pitch_result and (game.last_pitch_type or game.last_pitch_speed):
+                pitch_info = ""
+                if game.last_pitch_type:
+                    pitch_info = game.last_pitch_type[:2].upper()
+                if game.last_pitch_speed:
+                    speed = f"{int(game.last_pitch_speed)}mph"
+                    pitch_info = f"{pitch_info} {speed}" if pitch_info else speed
+                if pitch_info:
+                    self.canvas.draw_text(2, 43, pitch_info, *Colors.CYAN, font=self.small_font)
+            elif game.pitch_count is not None:
+                self.canvas.draw_text(2, 43, f"P:{game.pitch_count}", *Colors.WHITE, font=self.small_font)
+
+        # Row y=52 — At-bat result (shows briefly after play, then clears)
+        if game.last_at_bat_result:
+            _hits_walks = {"1B", "2B", "3B", "HR", "BB", "IBB", "HBP"}
+            _errors_special = {"E", "FC", "SF", "SH", "GDP", "DP", "TP"}
+            result = game.last_at_bat_result
+            if result in _hits_walks:
+                result_color = Colors.LIVE_GREEN
+            elif result in _errors_special:
+                result_color = Colors.YELLOW
             else:
-                # Show pitch count before pitch is thrown
-                if game.pitch_count is not None:
-                    pitch_count_text = f"P{game.pitch_count}"
-                    self.canvas.draw_text(2, 43, pitch_count_text, *Colors.WHITE, font=self.small_font)
+                result_color = Colors.WHITE
+            self.canvas.draw_text(2, 52, result, *result_color, font=self.small_font)
 
-        # Baseball diamond - rotated squares (diamonds) on right
+        # Row y=62 — Batter name + game hits-AB in parens
+        if game.current_batter:
+            batter_name = self._format_name(game.current_batter.name)
+            batter_text = f"B:{batter_name}"
+            if game.current_batter.hits is not None and game.current_batter.at_bats is not None:
+                batter_text += f" ({game.current_batter.hits}-{game.current_batter.at_bats})"
+            self.canvas.draw_text(2, 62, batter_text, *Colors.WHITE, font=self.small_font)
+
+        # ── BALL / STRIKE / OUT CIRCLES ────────────────────────────────────
+        # Labels at x=53, circles at x=65/71/77[/83], radius=2
+        # Filled = active count; FINAL_GRAY outline = not yet reached
+
+        # Balls — 4 green circles
+        self.canvas.draw_text(53, 34, "B:", *Colors.WHITE, font=self.small_font)
+        for i in range(4):
+            cx = 65 + i * 6
+            if i < game.count.balls:
+                self.canvas.draw_circle(cx, 31, 2, *Colors.LIVE_GREEN, filled=True)
+            else:
+                self.canvas.draw_circle(cx, 31, 2, *Colors.FINAL_GRAY, filled=False)
+
+        # Strikes — 3 red circles
+        self.canvas.draw_text(53, 43, "S:", *Colors.WHITE, font=self.small_font)
+        for i in range(3):
+            cx = 65 + i * 6
+            if i < game.count.strikes:
+                self.canvas.draw_circle(cx, 40, 2, *Colors.RED, filled=True)
+            else:
+                self.canvas.draw_circle(cx, 40, 2, *Colors.FINAL_GRAY, filled=False)
+
+        # Outs — 3 red circles
+        self.canvas.draw_text(53, 52, "O:", *Colors.WHITE, font=self.small_font)
+        for i in range(3):
+            cx = 65 + i * 6
+            if i < game.count.outs:
+                self.canvas.draw_circle(cx, 49, 2, *Colors.RED, filled=True)
+            else:
+                self.canvas.draw_circle(cx, 49, 2, *Colors.FINAL_GRAY, filled=False)
+
+        # ── INNING MARKER ─────────────────────────────────────────────────
+        # Placed on the out row, right of the O circles
+        if game.inning:
+            arrow = "▲" if game.inning.half == "top" else "▼"
+            arrow_color = Colors.LIVE_GREEN if game.inning.half == "top" else Colors.RED
+            self.canvas.draw_text(89, 52, f"{arrow}{game.inning.num}", *arrow_color, font=self.small_font)
+
+        # ── BASE DIAMONDS ──────────────────────────────────────────────────
         if self.config.modes.live_game.show_runners:
             base_x = 108
             base_y = 32
-            diamond_size = 6  # Half-width of diamond (increased from 4)
+            diamond_size = 6
 
-            # Draw diamonds (rotated 45 degrees) for each base
             # Second base (top center)
             if game.runners.second:
-                # Filled yellow diamond
                 for dy in range(-diamond_size, diamond_size + 1):
                     width = diamond_size - abs(dy)
                     for dx in range(-width, width + 1):
                         self.canvas.set_pixel(base_x + dx, base_y + dy, *Colors.YELLOW)
             else:
-                # Empty white diamond outline
                 self.canvas.draw_line(base_x, base_y - diamond_size, base_x + diamond_size, base_y, *Colors.WHITE)
                 self.canvas.draw_line(base_x + diamond_size, base_y, base_x, base_y + diamond_size, *Colors.WHITE)
                 self.canvas.draw_line(base_x, base_y + diamond_size, base_x - diamond_size, base_y, *Colors.WHITE)
@@ -266,53 +318,6 @@ class LiveGameRenderer(BaseRenderer):
                 self.canvas.draw_line(first_x + diamond_size, first_y, first_x, first_y + diamond_size, *Colors.WHITE)
                 self.canvas.draw_line(first_x, first_y + diamond_size, first_x - diamond_size, first_y, *Colors.WHITE)
                 self.canvas.draw_line(first_x - diamond_size, first_y, first_x, first_y - diamond_size, *Colors.WHITE)
-
-        # BOTTOM SECTION: B: [batter] [count] with BA below and out squares
-        if game.current_batter:
-            batter_name = self._format_name(game.current_batter.name)
-            count_text = f"{game.count.balls}-{game.count.strikes}"
-
-            # Batter name and count on same line
-            ab_text = f"B:{batter_name} {count_text}"
-            self.canvas.draw_text(2, 54, ab_text, *Colors.WHITE, font=self.small_font)
-
-            # INNING DISPLAY: Show inning number with arrow near outs
-            if game.inning:
-                inning_num = str(game.inning.num)
-                # Arrow color: green for top, red for bottom
-                arrow = "▲" if game.inning.half == "top" else "▼"
-                arrow_color = Colors.LIVE_GREEN if game.inning.half == "top" else Colors.RED
-
-                # Draw arrow and number together (smaller font), same row as pitch count
-                inning_text = f"{arrow}{inning_num}"
-                self.canvas.draw_text(62, 43, inning_text, *arrow_color, font=self.small_font)
-
-            # Outs as smaller squares on right
-            if self.config.modes.live_game.show_outs:
-                out_x = 100
-                for i in range(3):
-                    if i < game.count.outs:
-                        self.canvas.draw_rect(out_x + (i * 7), 52, 4, 4, *Colors.WHITE, filled=True)
-                    else:
-                        self.canvas.draw_rect(out_x + (i * 7), 52, 4, 4, *Colors.WHITE, filled=False)
-
-            # Bottom info row: at-bat result (left) and game hits-AB (right)
-            _hits_walks = {"1B", "2B", "3B", "HR", "BB", "IBB", "HBP"}
-            _errors_special = {"E", "FC", "SF", "SH", "GDP", "DP", "TP"}
-
-            if game.last_at_bat_result:
-                result = game.last_at_bat_result
-                if result in _hits_walks:
-                    result_color = Colors.LIVE_GREEN
-                elif result in _errors_special:
-                    result_color = Colors.YELLOW
-                else:
-                    result_color = Colors.WHITE
-                self.canvas.draw_text(2, 63, result, *result_color, font=self.small_font)
-
-            if game.current_batter.hits is not None and game.current_batter.at_bats is not None:
-                stats_text = f"{game.current_batter.hits}-{game.current_batter.at_bats}"
-                self.canvas.draw_text(50, 63, stats_text, *Colors.CYAN, font=self.small_font)
 
     def _render_final(self, game: LiveGameData):
         """Render final score."""
