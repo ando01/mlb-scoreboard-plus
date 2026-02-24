@@ -150,9 +150,10 @@ class LiveGameRenderer(BaseRenderer):
         # "NEXT UP" label right-side
         self.canvas.draw_text(75, 35, "NEXT UP", *Colors.CYAN, font=self.small_font)
 
-        # Next three batters, one per row
+        # Next three batters, one per row — show actual lineup position (1–9)
         for i, name in enumerate(game.next_batters[:3]):
-            batter_text = f"{i + 1}. {self._format_name(name)}"
+            pos = game.next_batter_positions[i] if i < len(game.next_batter_positions) else (i + 1)
+            batter_text = f"{pos}. {self._format_name(name)}"
             self.canvas.draw_text(2, 44 + i * 9, batter_text, *Colors.WHITE, font=self.small_font)
 
     def _render_live_game(self, game: LiveGameData):

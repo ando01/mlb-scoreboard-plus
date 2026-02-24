@@ -397,6 +397,7 @@ class MLBAPIClient:
         # Next batters — populated when outs == 3 (end of half-inning)
         # ----------------------------------------------------------------
         next_batters: list = []
+        next_batter_positions: list = []
         _live_states = {GameState.LIVE, GameState.IN_PROGRESS}
         if count.outs >= 3 and state in _live_states:
             is_top = line_score.get("isTopInning", True)
@@ -436,6 +437,9 @@ class MLBAPIClient:
                     name = entry.get("boxscoreName") or entry.get("fullName") or ""
                     if name:
                         next_batters.append(name)
+                        # 1-based lineup position (1–9)
+                        lineup_pos = batting_order.index(pid) + 1 if pid in batting_order else 0
+                        next_batter_positions.append(lineup_pos)
 
         # Probable pitchers (preview / pregame / scheduled)
         prob_home = None
@@ -467,6 +471,7 @@ class MLBAPIClient:
             pitch_count=pitch_count,
             show_pitch_result=show_pitch_result,
             next_batters=next_batters,
+            next_batter_positions=next_batter_positions,
             last_at_bat_result=last_at_bat_result,
         )
 
