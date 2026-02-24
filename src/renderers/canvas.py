@@ -82,14 +82,20 @@ class Canvas:
                 # Mock canvas for testing without emulator
                 self._canvas = MockCanvas(self.width, self.height)
 
+        # Pixel capture buffers for web UI preview
+        self._frame_buffer = [[(0, 0, 0)] * self.width for _ in range(self.height)]
+        self._display_buffer = [[(0, 0, 0)] * self.width for _ in range(self.height)]
+
     def set_pixel(self, x: int, y: int, r: int, g: int, b: int):
         """Set a single pixel."""
         if 0 <= x < self.width and 0 <= y < self.height:
             self._canvas.SetPixel(x, y, r, g, b)
+            self._frame_buffer[y][x] = (r, g, b)
 
     def clear(self):
         """Clear the canvas."""
         self._canvas.Clear()
+        self._frame_buffer = [[(0, 0, 0)] * self.width for _ in range(self.height)]
 
     def load_font(self, font_name: str = "7x13.bdf"):
         """Load a specific BDF font."""
@@ -225,6 +231,19 @@ class Canvas:
             self._canvas = self._matrix.SwapOnVSync(self._canvas)
         elif hasattr(self._canvas, 'display'):
             self._canvas.display()
+        # Snapshot completed frame for web preview
+        self._display_buffer = [row[:] for row in self._frame_buffer]
+
+    def get_frame_png(self, scale: int = 6) -> bytes:
+        """Return a scaled PNG of the current display buffer for web preview."""
+        from PIL import Image
+        import io
+        img = Image.new('RGB', (self.width, self.height))
+        img.putdata([pixel for row in self._display_buffer for pixel in row])
+        scaled = img.resize((self.width * scale, self.height * scale), Image.NEAREST)
+        buf = io.BytesIO()
+        scaled.save(buf, format='PNG')
+        return buf.getvalue()
 
 
 class MockCanvas:

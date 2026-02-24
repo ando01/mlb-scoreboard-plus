@@ -2,7 +2,7 @@
 import asyncio
 from fastapi import FastAPI, HTTPException, WebSocket
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.responses import HTMLResponse, FileResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 from typing import Optional
@@ -115,6 +115,42 @@ async def get_status():
             "pinned_game_id": data_fetcher_instance.pinned_game_id if data_fetcher_instance else None,
         }
     return {"running": False}
+
+
+@app.get("/api/display/preview")
+async def get_display_preview(scale: int = 6):
+    """Return a scaled PNG snapshot of the current display frame."""
+    scale = max(1, min(scale, 12))
+    if scoreboard_instance and hasattr(scoreboard_instance, 'canvas'):
+        try:
+            png_bytes = scoreboard_instance.canvas.get_frame_png(scale=scale)
+        except Exception:
+            png_bytes = _black_png(scale)
+    else:
+        png_bytes = _black_png(scale)
+    return Response(
+        content=png_bytes,
+        media_type="image/png",
+        headers={
+            "Cache-Control": "no-store",
+            "Pragma": "no-cache",
+        },
+    )
+
+
+def _black_png(scale: int = 6) -> bytes:
+    """Generate a solid black PNG at the default display dimensions."""
+    from PIL import Image
+    import io
+    import os
+    rows = int(os.getenv('LED_ROWS', 64))
+    cols = int(os.getenv('LED_COLS', 64))
+    chain = int(os.getenv('LED_CHAIN', 2))
+    w, h = cols * chain, rows
+    img = Image.new('RGB', (w * scale, h * scale), (0, 0, 0))
+    buf = io.BytesIO()
+    img.save(buf, format='PNG')
+    return buf.getvalue()
 
 
 @app.get("/api/display/settings")

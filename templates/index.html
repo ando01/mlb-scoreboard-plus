@@ -316,6 +316,88 @@
         .btn-auto { background: transparent; border: 1px solid #1a4a8a; color: #aaa; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; white-space: nowrap; transition: all 0.15s; }
         .btn-auto:hover { border-color: #667eea; color: white; }
         .btn-auto.active { background: #4ade80; border-color: #4ade80; color: #041e42; font-weight: 600; }
+
+        /* ── Live Preview ── */
+        .preview-wrap {
+            background: #1a1a1a;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.4);
+            overflow: hidden;
+        }
+        .preview-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 16px;
+            background: #111;
+            border-bottom: 1px solid #333;
+        }
+        .preview-title {
+            color: #fff;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        .preview-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .preview-fps {
+            color: #556;
+            font-size: 11px;
+            font-family: monospace;
+            min-width: 55px;
+            text-align: right;
+        }
+        .btn-preview-toggle {
+            background: transparent;
+            border: 1px solid #333;
+            color: #aaa;
+            padding: 4px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.15s;
+        }
+        .btn-preview-toggle:hover { border-color: #667eea; color: white; }
+        .btn-preview-toggle.paused { background: #4ade8022; border-color: #4ade80; color: #4ade80; }
+        .preview-bezel {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 16px;
+            background: radial-gradient(ellipse at center, #2a2a2a 0%, #111 100%);
+        }
+        .preview-screen {
+            position: relative;
+            border: 2px solid #333;
+            border-radius: 3px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.8), inset 0 0 4px rgba(0,0,0,0.5);
+            overflow: hidden;
+        }
+        .preview-screen::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 5px,
+                rgba(0,0,0,0.08) 5px,
+                rgba(0,0,0,0.08) 6px
+            );
+            pointer-events: none;
+        }
+        #preview-img {
+            display: block;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+            max-width: 100%;
+            height: auto;
+        }
     </style>
 </head>
 <body>
@@ -333,6 +415,22 @@
             </div>
             <div class="ticker-scroll" id="game-ticker">
                 <div style="color:#556;padding:14px 16px;font-size:13px;">Loading games…</div>
+            </div>
+        </div>
+
+        <!-- Live Preview -->
+        <div class="preview-wrap">
+            <div class="preview-header">
+                <span class="preview-title">Live Preview</span>
+                <div class="preview-controls">
+                    <span class="preview-fps" id="preview-fps">-- fps</span>
+                    <button class="btn-preview-toggle" id="preview-toggle-btn" onclick="togglePreview()">Pause</button>
+                </div>
+            </div>
+            <div class="preview-bezel">
+                <div class="preview-screen">
+                    <img id="preview-img" src="/api/display/preview?scale=6" alt="Scoreboard Preview" width="768" height="384">
+                </div>
             </div>
         </div>
 
@@ -1025,6 +1123,57 @@
                 alert.style.display = 'block';
             }
         }
+
+        // ── Live Preview polling ──
+        let previewActive = true;
+        let previewLastTime = performance.now();
+        let previewFrameCount = 0;
+
+        function scheduleNextFrame() {
+            if (!previewActive) return;
+            const img = document.getElementById('preview-img');
+            const next = new Image();
+            next.onload = function () {
+                img.src = next.src;
+                previewFrameCount++;
+                const now = performance.now();
+                const elapsed = now - previewLastTime;
+                if (elapsed >= 1000) {
+                    const fps = (previewFrameCount / elapsed * 1000).toFixed(1);
+                    document.getElementById('preview-fps').textContent = fps + ' fps';
+                    previewFrameCount = 0;
+                    previewLastTime = now;
+                }
+                scheduleNextFrame();
+            };
+            next.onerror = function () {
+                // Retry after a short delay on error
+                setTimeout(scheduleNextFrame, 500);
+            };
+            next.src = '/api/display/preview?scale=6&t=' + Date.now();
+        }
+
+        function togglePreview() {
+            previewActive = !previewActive;
+            const btn = document.getElementById('preview-toggle-btn');
+            if (previewActive) {
+                btn.textContent = 'Pause';
+                btn.classList.remove('paused');
+                previewLastTime = performance.now();
+                previewFrameCount = 0;
+                scheduleNextFrame();
+            } else {
+                btn.textContent = 'Resume';
+                btn.classList.add('paused');
+                document.getElementById('preview-fps').textContent = '-- fps';
+            }
+        }
+
+        // Start preview polling after page load
+        window.addEventListener('load', () => {
+            previewLastTime = performance.now();
+            scheduleNextFrame();
+        });
 
         // Initialize
         loadConfig();
