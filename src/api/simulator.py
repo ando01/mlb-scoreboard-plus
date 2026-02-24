@@ -289,36 +289,44 @@ class GameSimulator:
                 game.runners.third = random.choice(self.player_names) if random.random() > 0.8 else None
 
             elif action < 0.55:  # 10% chance - out recorded
-                game.count.outs = min(game.count.outs + 1, 2)
-
-                # New batter when out is recorded, reset pitch count
-                game.pitch_count = 0
-                game.show_pitch_result = False
-
-                if game.count.outs == 2:
-                    # Inning change
+                if game.count.outs >= 3:
+                    # End-of-inning screen was showing; now start the new half
                     game.count.outs = 0
-                    game.runners = BaseRunner()
                     game.count.balls = 0
                     game.count.strikes = 0
+                    game.next_batters = []
+                    game.next_batter_positions = []
+                else:
+                    game.count.outs += 1
+                    game.pitch_count = 0
+                    game.show_pitch_result = False
 
-                    if game.inning.half == "top":
-                        game.inning.half = "bottom"
-                    else:
-                        game.inning.half = "top"
-                        game.inning.num = min(game.inning.num + 1, 9)
-                        game.inning.ordinal = self._get_ordinal(game.inning.num)
+                    if game.count.outs == 3:
+                        # Inning change — populate next-up display before resetting
+                        game.runners = BaseRunner()
 
-                game.last_play = Play(
-                    description=random.choice([
-                        "Strikeout looking",
-                        "Ground out to shortstop",
-                        "Flyout to center field",
-                        "Pop out to first base"
-                    ]),
-                    event="out",
-                    is_scoring_play=False
-                )
+                        # Pick 3 consecutive batters starting at a random lineup spot
+                        start_pos = random.randint(0, len(self.player_names) - 4)
+                        game.next_batters = list(self.player_names[start_pos:start_pos + 3])
+                        game.next_batter_positions = list(range(start_pos + 1, start_pos + 4))
+
+                        if game.inning.half == "top":
+                            game.inning.half = "bottom"
+                        else:
+                            game.inning.half = "top"
+                            game.inning.num = min(game.inning.num + 1, 9)
+                            game.inning.ordinal = self._get_ordinal(game.inning.num)
+
+                    game.last_play = Play(
+                        description=random.choice([
+                            "Strikeout looking",
+                            "Ground out to shortstop",
+                            "Flyout to center field",
+                            "Pop out to first base"
+                        ]),
+                        event="out",
+                        is_scoring_play=False
+                    )
 
             # Advance to final state if late inning
             if game.inning.num >= 9 and game.inning.half == "bottom":
