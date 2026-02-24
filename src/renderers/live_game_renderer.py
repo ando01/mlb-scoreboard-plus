@@ -267,11 +267,11 @@ class LiveGameRenderer(BaseRenderer):
                 self.canvas.draw_circle(cx, 49, 2, *Colors.FINAL_GRAY, filled=False)
 
         # ── INNING MARKER ─────────────────────────────────────────────────
-        # Placed on the out row, right of the O circles
+        # Centered under the base diamonds (diamond cluster center x≈108)
         if game.inning:
             arrow = "▲" if game.inning.half == "top" else "▼"
             arrow_color = Colors.LIVE_GREEN if game.inning.half == "top" else Colors.RED
-            self.canvas.draw_text(89, 52, f"{arrow}{game.inning.num}", *arrow_color, font=self.small_font)
+            self.canvas.draw_text(104, 57, f"{arrow}{game.inning.num}", *arrow_color, font=self.small_font)
 
         # ── BASE DIAMONDS ──────────────────────────────────────────────────
         if self.config.modes.live_game.show_runners:
