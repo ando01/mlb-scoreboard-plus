@@ -317,6 +317,57 @@
         .btn-auto:hover { border-color: #667eea; color: white; }
         .btn-auto.active { background: #4ade80; border-color: #4ade80; color: #041e42; font-weight: 600; }
 
+        /* ── Output Mode Toggle ── */
+        .output-mode-bar {
+            background: white;
+            padding: 14px 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        .output-mode-label {
+            color: #333;
+            font-weight: 600;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+        .output-mode-toggle {
+            display: flex;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .mode-btn {
+            padding: 9px 20px;
+            border: none;
+            background: #f3f4f6;
+            color: #6b7280;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+        .mode-btn + .mode-btn { border-left: 1px solid #ddd; }
+        .mode-btn:hover { background: #e5e7eb; color: #333; }
+        .mode-btn.active { background: #667eea; color: white; }
+        .mode-btn.active.hardware { background: #10b981; }
+        .mode-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: currentColor;
+            flex-shrink: 0;
+        }
+        .mode-btn.active .mode-dot { animation: pulse 2s infinite; }
+        .preview-wrap.hidden { display: none; }
+
         /* ── Live Preview ── */
         .preview-wrap {
             background: #1a1a1a;
@@ -406,6 +457,19 @@
             <h1>⚾ MLB LED Scoreboard</h1>
             <p class="subtitle">Control Panel - Configure and monitor your LED scoreboard</p>
         </header>
+
+        <!-- Output Mode Toggle -->
+        <div class="output-mode-bar">
+            <span class="output-mode-label">Output Mode</span>
+            <div class="output-mode-toggle">
+                <button class="mode-btn active" id="mode-btn-emulated" onclick="setOutputMode(false)">
+                    <span class="mode-dot"></span> Emulated (Web Preview)
+                </button>
+                <button class="mode-btn hardware" id="mode-btn-hardware" onclick="setOutputMode(true)">
+                    <span class="mode-dot"></span> Hardware (LED Matrix)
+                </button>
+            </div>
+        </div>
 
         <!-- MLB.com-style Game Ticker -->
         <div class="ticker-wrap">
@@ -577,17 +641,9 @@
                 document.getElementById('current-mode').textContent = data.current_mode || '-';
                 document.getElementById('games-count').textContent = data.games_count || 0;
 
-                // Update matrix toggle button state
+                // Sync output mode (matrix enabled = hardware, disabled = emulated)
                 if (data.matrix_enabled !== undefined) {
-                    matrixEnabled = data.matrix_enabled;
-                    const btn = document.getElementById('matrix-toggle-btn');
-                    if (matrixEnabled) {
-                        btn.textContent = '🔴 Turn Display OFF';
-                        btn.style.background = '#ef4444';
-                    } else {
-                        btn.textContent = '🟢 Turn Display ON';
-                        btn.style.background = '#10b981';
-                    }
+                    applyOutputMode(data.matrix_enabled);
                 }
 
                 // Sync pinned game from server state
@@ -1087,41 +1143,70 @@
             }
         }
 
-        async function toggleMatrix() {
+        // Central function: apply output mode state to all UI elements
+        function applyOutputMode(hardwareMode) {
+            matrixEnabled = hardwareMode;
+
+            // Output mode toggle buttons
+            const emulatedBtn = document.getElementById('mode-btn-emulated');
+            const hardwareBtn = document.getElementById('mode-btn-hardware');
+            if (hardwareMode) {
+                emulatedBtn.classList.remove('active');
+                hardwareBtn.classList.add('active');
+            } else {
+                hardwareBtn.classList.remove('active');
+                emulatedBtn.classList.add('active');
+            }
+
+            // Live preview: show in emulated mode, hide in hardware mode
+            const previewWrap = document.querySelector('.preview-wrap');
+            if (hardwareMode) {
+                previewWrap.classList.add('hidden');
+                // Pause preview polling to save resources
+                if (previewActive) {
+                    previewActive = false;
+                    document.getElementById('preview-toggle-btn').textContent = 'Resume';
+                    document.getElementById('preview-toggle-btn').classList.add('paused');
+                    document.getElementById('preview-fps').textContent = '-- fps';
+                }
+            } else {
+                previewWrap.classList.remove('hidden');
+                // Resume preview polling if it was paused by hardware mode
+                if (!previewActive) {
+                    previewActive = true;
+                    document.getElementById('preview-toggle-btn').textContent = 'Pause';
+                    document.getElementById('preview-toggle-btn').classList.remove('paused');
+                    previewLastTime = performance.now();
+                    previewFrameCount = 0;
+                    scheduleNextFrame();
+                }
+            }
+
+            // Keep legacy matrix toggle button in Display Mode card in sync
+            const legacyBtn = document.getElementById('matrix-toggle-btn');
+            if (legacyBtn) {
+                legacyBtn.textContent = hardwareMode ? '🔴 Turn Display OFF' : '🟢 Turn Display ON';
+                legacyBtn.style.background = hardwareMode ? '#ef4444' : '#10b981';
+            }
+        }
+
+        // Set output mode: call API then apply UI state
+        async function setOutputMode(hardwareMode) {
             try {
-                const newState = !matrixEnabled;
-                const response = await fetch('/api/matrix/toggle', {
+                await fetch('/api/matrix/toggle', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({enabled: newState})
+                    body: JSON.stringify({enabled: hardwareMode})
                 });
-                const data = await response.json();
-
-                matrixEnabled = newState;
-                const btn = document.getElementById('matrix-toggle-btn');
-                const alert = document.getElementById('matrix-toggle-alert');
-
-                if (matrixEnabled) {
-                    btn.textContent = '🔴 Turn Display OFF';
-                    btn.style.background = '#ef4444';
-                    alert.textContent = 'LED matrix turned ON';
-                } else {
-                    btn.textContent = '🟢 Turn Display ON';
-                    btn.style.background = '#10b981';
-                    alert.textContent = 'LED matrix turned OFF';
-                }
-
-                alert.className = 'alert alert-success';
-                alert.style.display = 'block';
-                setTimeout(() => {
-                    alert.style.display = 'none';
-                }, 3000);
+                applyOutputMode(hardwareMode);
             } catch (error) {
-                const alert = document.getElementById('matrix-toggle-alert');
-                alert.textContent = 'Error toggling matrix';
-                alert.className = 'alert alert-error';
-                alert.style.display = 'block';
+                console.error('Error setting output mode:', error);
             }
+        }
+
+        // Legacy toggle used by the Display Mode card button
+        function toggleMatrix() {
+            setOutputMode(!matrixEnabled);
         }
 
         // ── Live Preview polling ──
