@@ -157,10 +157,37 @@ class Canvas:
                             pass
 
             color = graphics.Color(r, g, b)
-            return graphics.DrawText(self._canvas, font, x, y, color, text)
+            result = graphics.DrawText(self._canvas, font, x, y, color, text)
+            self._draw_text_to_buffer(x, y, text, r, g, b)
+            return result
         else:
             # Mock implementation
+            self._draw_text_to_buffer(x, y, text, r, g, b)
             return len(text) * 6
+
+    def _draw_text_to_buffer(self, x: int, y: int, text: str, r: int, g: int, b: int):
+        """Render text into _frame_buffer for web UI preview using Pillow."""
+        try:
+            from PIL import Image, ImageDraw, ImageFont
+            try:
+                # Pillow >= 10: load_default accepts a size; match the 7x13 LED font height
+                pil_font = ImageFont.load_default(size=11)
+            except TypeError:
+                pil_font = ImageFont.load_default()
+            # rgbmatrix DrawText y is the text baseline; Pillow draw.text y is the top.
+            # For the 7x13 BDF font the ascent is ~11px, so top = y - 11.
+            top = y - 11
+            img = Image.new('RGB', (self.width, self.height), (0, 0, 0))
+            draw = ImageDraw.Draw(img)
+            draw.text((x, top), text, fill=(r, g, b), font=pil_font)
+            pixels = img.load()
+            for py in range(self.height):
+                for px in range(self.width):
+                    pr, pg, pb = pixels[px, py]
+                    if pr > 0 or pg > 0 or pb > 0:
+                        self._frame_buffer[py][px] = (pr, pg, pb)
+        except Exception:
+            pass
 
     def draw_line(self, x1: int, y1: int, x2: int, y2: int, r: int, g: int, b: int):
         """Draw a line."""
