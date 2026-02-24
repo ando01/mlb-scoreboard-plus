@@ -103,6 +103,31 @@ class LiveGameRenderer(BaseRenderer):
             pitcher_text = game.probable_pitcher_home.split()[-1][:8]
             self.canvas.draw_text(55, 23, f"P: {pitcher_text}", *Colors.YELLOW)
 
+    @staticmethod
+    def _format_name(name: str) -> str:
+        """Return a name in 'J.Duran' format (first initial + last name).
+
+        Handles multiple source formats:
+          'Jhoan Duran'  → 'J.Duran'
+          'J. Duran'     → 'J.Duran'
+          'Duran, J.'    → 'J.Duran'   (boxscoreName style)
+          'Duran'        → 'Duran'      (no initial available)
+        """
+        if not name:
+            return name
+        # "Last, F." style (common MLB boxscoreName)
+        if ',' in name:
+            parts = name.split(',', 1)
+            last = parts[0].strip()
+            first_part = parts[1].strip()
+            initial = first_part[0] if first_part else ''
+            return f"{initial}.{last}" if initial else last
+        # "First Last" or "F. Last" style
+        parts = name.split()
+        if len(parts) >= 2:
+            return f"{parts[0][0]}.{parts[-1]}"
+        return name
+
     def _render_end_of_inning(self, game: LiveGameData):
         """Render end-of-inning screen: score + next 3 batters."""
         away_color = Colors.get_team_color(game.away_team.abbreviation)
@@ -127,7 +152,7 @@ class LiveGameRenderer(BaseRenderer):
 
         # Next three batters, one per row
         for i, name in enumerate(game.next_batters[:3]):
-            batter_text = f"{i + 1}. {name[:14]}"
+            batter_text = f"{i + 1}. {self._format_name(name)}"
             self.canvas.draw_text(2, 44 + i * 9, batter_text, *Colors.WHITE, font=self.small_font)
 
     def _render_live_game(self, game: LiveGameData):
@@ -170,7 +195,7 @@ class LiveGameRenderer(BaseRenderer):
 
         # MIDDLE SECTION: P: [pitcher name] with ERA and pitch info below
         if game.current_pitcher:
-            pitcher_name = game.current_pitcher.name.split()[-1][:8]  # Last name
+            pitcher_name = self._format_name(game.current_pitcher.name)
             pitcher_text = f"P:{pitcher_name}"
             self.canvas.draw_text(2, 34, pitcher_text, *Colors.WHITE, font=self.small_font)
 
@@ -243,7 +268,7 @@ class LiveGameRenderer(BaseRenderer):
 
         # BOTTOM SECTION: B: [batter] [count] with BA below and out squares
         if game.current_batter:
-            batter_name = game.current_batter.name.split()[-1][:6]  # Last name truncated
+            batter_name = self._format_name(game.current_batter.name)
             count_text = f"{game.count.balls}-{game.count.strikes}"
 
             # Batter name and count on same line
