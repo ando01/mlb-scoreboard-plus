@@ -210,12 +210,12 @@ class LiveGameRenderer(BaseRenderer):
                         speed = f"{int(game.last_pitch_speed)}mph"
                         pitch_info = f"{pitch_info} {speed}" if pitch_info else speed
                     if pitch_info:
-                        self.canvas.draw_text(45, 43, pitch_info, *Colors.CYAN, font=self.small_font)
+                        self.canvas.draw_text(2, 43, pitch_info, *Colors.CYAN, font=self.small_font)
             else:
                 # Show pitch count before pitch is thrown
                 if game.pitch_count is not None:
                     pitch_count_text = f"P{game.pitch_count}"
-                    self.canvas.draw_text(45, 43, pitch_count_text, *Colors.WHITE, font=self.small_font)
+                    self.canvas.draw_text(2, 43, pitch_count_text, *Colors.WHITE, font=self.small_font)
 
         # Baseball diamond - rotated squares (diamonds) on right
         if self.config.modes.live_game.show_runners:
@@ -282,9 +282,9 @@ class LiveGameRenderer(BaseRenderer):
                 arrow = "▲" if game.inning.half == "top" else "▼"
                 arrow_color = Colors.LIVE_GREEN if game.inning.half == "top" else Colors.RED
 
-                # Draw arrow and number together (smaller font), positioned near outs
+                # Draw arrow and number together (smaller font), same row as pitch count
                 inning_text = f"{arrow}{inning_num}"
-                self.canvas.draw_text(68, 54, inning_text, *arrow_color, font=self.small_font)
+                self.canvas.draw_text(45, 43, inning_text, *arrow_color, font=self.small_font)
 
             # Outs as smaller squares on right
             if self.config.modes.live_game.show_outs:
