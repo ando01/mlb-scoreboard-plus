@@ -98,12 +98,19 @@ After=network.target
 
 [Service]
 Type=simple
-User=$USER
+# Root required for GPIO/LED matrix hardware access
+User=root
 WorkingDirectory=$INSTALL_DIR
 Environment=\"PATH=$INSTALL_DIR/venv/bin\"
+EnvironmentFile=$INSTALL_DIR/.env
 ExecStart=$INSTALL_DIR/venv/bin/python3 $INSTALL_DIR/main.py --web-ui
 Restart=always
 RestartSec=10
+# Real-time CPU scheduling reduces OS jitter in software PWM
+CPUSchedulingPolicy=rr
+CPUSchedulingPriority=50
+# Prevent OOM killer from targeting this process
+OOMScoreAdjust=-500
 
 [Install]
 WantedBy=multi-user.target
