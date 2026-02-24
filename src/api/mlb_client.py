@@ -319,9 +319,12 @@ class MLBAPIClient:
             b = offense["batter"]
             bstats = bs_players.get(b.get("id"), {})
             avg = bstats.get("seasonStats", {}).get("batting", {}).get("avg", ".000")
+            game_batting = bstats.get("stats", {}).get("batting", {})
             current_batter = PlayerStats(
                 name=player_name(b),
                 avg=str(avg),
+                hits=game_batting.get("hits"),
+                at_bats=game_batting.get("atBats"),
             )
 
         # ----------------------------------------------------------------
@@ -345,6 +348,7 @@ class MLBAPIClient:
         last_pitch_speed: Optional[float] = None
         pitch_count: Optional[int] = None
         show_pitch_result: bool = False
+        last_at_bat_result: Optional[str] = None
 
         current_play = live_data.get("plays", {}).get("currentPlay", {})
         if current_play:
@@ -358,6 +362,15 @@ class MLBAPIClient:
                     show_pitch_result = True
                     break
 
+            # Show at-bat result only when the current play is complete.
+            # Clears automatically when the next batter's at-bat begins.
+            if current_play.get("about", {}).get("isComplete", False):
+                event_str = current_play.get("result", {}).get("event", "")
+                if event_str:
+                    last_at_bat_result = _AT_BAT_ABBREVS.get(
+                        event_str.lower(), event_str[:4].upper()
+                    )
+
         # Total pitch count for the current pitcher (game stats, not season stats)
         if current_pitcher and defense.get("pitcher"):
             pid = defense["pitcher"].get("id")
@@ -367,9 +380,8 @@ class MLBAPIClient:
                 if np is not None:
                     pitch_count = int(np)
 
-        # Last play + at-bat result abbreviation
+        # Last play
         last_play = None
-        last_at_bat_result: Optional[str] = None
         plays = live_data.get("plays", {}).get("allPlays", [])
         if plays:
             last = plays[-1]
@@ -380,15 +392,6 @@ class MLBAPIClient:
                 is_scoring_play=result.get("isScoringPlay", False),
                 rbi=result.get("rbi", 0),
             )
-            # Find the most recent completed at-bat and map to abbreviation
-            for play in reversed(plays):
-                if play.get("about", {}).get("isComplete", False):
-                    event_str = play.get("result", {}).get("event", "")
-                    if event_str:
-                        last_at_bat_result = _AT_BAT_ABBREVS.get(
-                            event_str.lower(), event_str[:4].upper()
-                        )
-                    break
 
         # ----------------------------------------------------------------
         # Next batters — populated when outs == 3 (end of half-inning)

@@ -76,6 +76,7 @@ class PlayerStats(BaseModel):
     avg: Optional[str] = None
     era: Optional[str] = None
     hits: Optional[int] = None
+    at_bats: Optional[int] = None
     runs: Optional[int] = None
     rbi: Optional[int] = None
     hr: Optional[int] = None

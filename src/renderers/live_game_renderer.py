@@ -295,10 +295,11 @@ class LiveGameRenderer(BaseRenderer):
                     else:
                         self.canvas.draw_rect(out_x + (i * 7), 52, 4, 4, *Colors.WHITE, filled=False)
 
-            # Last at-bat result below batter line
+            # Bottom info row: at-bat result (left) and game hits-AB (right)
+            _hits_walks = {"1B", "2B", "3B", "HR", "BB", "IBB", "HBP"}
+            _errors_special = {"E", "FC", "SF", "SH", "GDP", "DP", "TP"}
+
             if game.last_at_bat_result:
-                _hits_walks = {"1B", "2B", "3B", "HR", "BB", "IBB", "HBP"}
-                _errors_special = {"E", "FC", "SF", "SH", "GDP", "DP", "TP"}
                 result = game.last_at_bat_result
                 if result in _hits_walks:
                     result_color = Colors.LIVE_GREEN
@@ -307,6 +308,10 @@ class LiveGameRenderer(BaseRenderer):
                 else:
                     result_color = Colors.WHITE
                 self.canvas.draw_text(2, 63, result, *result_color, font=self.small_font)
+
+            if game.current_batter.hits is not None and game.current_batter.at_bats is not None:
+                stats_text = f"{game.current_batter.hits}-{game.current_batter.at_bats}"
+                self.canvas.draw_text(50, 63, stats_text, *Colors.CYAN, font=self.small_font)
 
     def _render_final(self, game: LiveGameData):
         """Render final score."""
