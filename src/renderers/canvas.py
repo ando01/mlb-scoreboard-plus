@@ -192,15 +192,17 @@ class Canvas:
                 pil_font = ImageFont.load_default()
             # rgbmatrix DrawText y is the baseline; Pillow draw.text y is the top.
             top = y - baseline_offset
-            img = Image.new('RGB', (self.width, self.height), (0, 0, 0))
-            draw = ImageDraw.Draw(img)
-            draw.text((x, top), text, fill=(r, g, b), font=pil_font)
-            pixels = img.load()
+            # Render to a 1-bit image so Pillow uses no anti-aliasing —
+            # every pixel is either fully on or fully off, giving crisp
+            # pixel-art text identical to the BDF bitmap fonts on hardware.
+            mask = Image.new('1', (self.width, self.height), 0)
+            draw = ImageDraw.Draw(mask)
+            draw.text((x, top), text, fill=1, font=pil_font)
+            pixels = mask.load()
             for py in range(self.height):
                 for px in range(self.width):
-                    pr, pg, pb = pixels[px, py]
-                    if pr > 0 or pg > 0 or pb > 0:
-                        self._frame_buffer[py][px] = (pr, pg, pb)
+                    if pixels[px, py]:
+                        self._frame_buffer[py][px] = (r, g, b)
         except Exception:
             pass
 
