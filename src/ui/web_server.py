@@ -162,7 +162,11 @@ async def get_display_settings():
         "pwm_lsb_nanoseconds": int(os.getenv('LED_PWM_LSB_NANOSECONDS', 200)),
         "pwm_bits": int(os.getenv('LED_PWM_BITS', 11)),
         "gpio_slowdown": int(os.getenv('LED_GPIO_SLOWDOWN', 4)),
-        "brightness": int(os.getenv('LED_BRIGHTNESS', 30))
+        "brightness": int(os.getenv('LED_BRIGHTNESS', 30)),
+        "scan_mode": int(os.getenv('LED_SCAN_MODE', 1)),
+        "limit_refresh_rate_hz": int(os.getenv('LED_LIMIT_REFRESH', 0)),
+        "rgb_sequence": os.getenv('LED_RGB_SEQUENCE', 'RGB'),
+        "pwm_dither_bits": int(os.getenv('LED_PWM_DITHER_BITS', 0)),
     }
 
 
@@ -188,10 +192,14 @@ async def set_display_settings(data: dict):
     """Set display quality settings in real-time (requires restart for some settings)."""
     import os
 
-    # These settings require restart
+    # All these settings require restart
     pwm_lsb = data.get("pwm_lsb_nanoseconds")
     pwm_bits = data.get("pwm_bits")
     gpio_slowdown = data.get("gpio_slowdown")
+    scan_mode = data.get("scan_mode")
+    limit_refresh = data.get("limit_refresh_rate_hz")
+    rgb_sequence = data.get("rgb_sequence")
+    pwm_dither = data.get("pwm_dither_bits")
 
     # Update environment variables (will take effect on next restart)
     env_file = os.path.join(os.path.dirname(__file__), '..', '..', '.env')
@@ -214,6 +222,14 @@ async def set_display_settings(data: dict):
             env_vars['LED_PWM_BITS'] = str(pwm_bits)
         if gpio_slowdown is not None:
             env_vars['LED_GPIO_SLOWDOWN'] = str(gpio_slowdown)
+        if scan_mode is not None:
+            env_vars['LED_SCAN_MODE'] = str(scan_mode)
+        if limit_refresh is not None:
+            env_vars['LED_LIMIT_REFRESH'] = str(limit_refresh)
+        if rgb_sequence is not None:
+            env_vars['LED_RGB_SEQUENCE'] = str(rgb_sequence)
+        if pwm_dither is not None:
+            env_vars['LED_PWM_DITHER_BITS'] = str(pwm_dither)
 
         # Write back to .env
         with open(env_file, 'w') as f:

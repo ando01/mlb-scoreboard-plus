@@ -592,27 +592,76 @@
 
                     <!-- Color Quality Settings - Requires Restart -->
                     <div style="margin-bottom: 15px;">
-                        <h3 style="font-size: 16px; margin-bottom: 10px; color: #666;">Color Quality (Restart Required)</h3>
+                        <h3 style="font-size: 16px; margin-bottom: 10px; color: #374151;">LED Matrix Settings</h3>
+
+                        <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 18px;">⚠️</span>
+                            <span style="font-size: 13px; color: #92400e; font-weight: 500;">All settings below require a scoreboard restart to take effect. Save first, then restart.</span>
+                        </div>
 
                         <div class="form-group">
-                            <label>Contrast/Smoothness (100-400)</label>
+                            <label>Contrast / Smoothness — <code>LED_PWM_LSB_NANOSECONDS</code></label>
                             <input type="range" id="pwm-lsb-slider" min="100" max="400" value="200" oninput="updatePWMLSBDisplay(this.value)" style="width: 100%; margin-bottom: 5px;">
-                            <span id="pwm-lsb-value" style="color: #666; font-size: 12px;">200 (Lower=Brighter/Harsher, Higher=Softer)</span>
+                            <span id="pwm-lsb-value" style="color: #666; font-size: 12px;">200 — Lower = brighter/punchier, Higher = softer/smoother. Try 130 for faded colors.</span>
                         </div>
 
                         <div class="form-group">
-                            <label>Color Depth (1-11)</label>
+                            <label>Color Depth — <code>LED_PWM_BITS</code></label>
                             <input type="range" id="pwm-bits-slider" min="1" max="11" value="11" oninput="updatePWMBitsDisplay(this.value)" style="width: 100%; margin-bottom: 5px;">
-                            <span id="pwm-bits-value" style="color: #666; font-size: 12px;">11 bits (Higher=Better colors)</span>
+                            <span id="pwm-bits-value" style="color: #666; font-size: 12px;">11 bits — Higher = richer colors. Leave at 11 unless you see flickering.</span>
                         </div>
 
                         <div class="form-group">
-                            <label>Refresh Speed (2-6)</label>
-                            <input type="range" id="gpio-slowdown-slider" min="2" max="6" value="4" oninput="updateGPIODisplay(this.value)" style="width: 100%; margin-bottom: 5px;">
-                            <span id="gpio-slowdown-value" style="color: #666; font-size: 12px;">4 (Higher=Less flicker, slower)</span>
+                            <label>GPIO Slowdown — <code>LED_GPIO_SLOWDOWN</code></label>
+                            <input type="range" id="gpio-slowdown-slider" min="1" max="6" value="4" oninput="updateGPIODisplay(this.value)" style="width: 100%; margin-bottom: 5px;">
+                            <span id="gpio-slowdown-value" style="color: #666; font-size: 12px;">4 — Must match your Pi: Pi 3=3, Pi 4=4, Pi 5=5. Wrong value causes flashing.</span>
                         </div>
 
-                        <button class="btn" onclick="saveDisplaySettings()" style="background: #10b981; margin-top: 10px;">💾 Save Color Settings</button>
+                        <div class="form-group">
+                            <label>Scan Mode — <code>LED_SCAN_MODE</code></label>
+                            <select id="scan-mode-select" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;">
+                                <option value="0">0 — Progressive (try this first to reduce flashing)</option>
+                                <option value="1" selected>1 — Interlaced (default)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Refresh Rate Limit — <code>LED_LIMIT_REFRESH</code></label>
+                            <select id="limit-refresh-select" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;">
+                                <option value="0" selected>0 — No limit (default)</option>
+                                <option value="60">60 Hz</option>
+                                <option value="100">100 Hz</option>
+                                <option value="120">120 Hz — recommended to reduce flashing</option>
+                                <option value="200">200 Hz</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Color Order — <code>LED_RGB_SEQUENCE</code></label>
+                            <select id="rgb-sequence-select" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;">
+                                <option value="RGB" selected>RGB (default — most panels)</option>
+                                <option value="RBG">RBG</option>
+                                <option value="GRB">GRB</option>
+                                <option value="GBR">GBR</option>
+                                <option value="BRG">BRG</option>
+                                <option value="BGR">BGR</option>
+                            </select>
+                            <span style="color: #666; font-size: 12px;">If red looks blue or colors look wrong, try RBG or GRB.</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label>PWM Dither Bits — <code>LED_PWM_DITHER_BITS</code></label>
+                            <select id="pwm-dither-select" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;">
+                                <option value="0" selected>0 — Off (default)</option>
+                                <option value="1">1 — Light dithering (can reduce flicker)</option>
+                                <option value="2">2 — More dithering</option>
+                            </select>
+                        </div>
+
+                        <div style="display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap;">
+                            <button class="btn" onclick="saveDisplaySettings()" style="background: #10b981; flex: 1;">💾 Save Settings</button>
+                            <button class="btn" onclick="restartScoreboard()" style="background: #ef4444; flex: 1;">🔄 Restart Now</button>
+                        </div>
                         <div id="display-alert" style="margin-top: 10px; display: none;"></div>
                     </div>
 
@@ -622,7 +671,6 @@
                         <input type="checkbox" id="rotation-enabled" checked onchange="updateConfig()">
                         <label for="rotation-enabled">Auto-rotate display</label>
                     </div>
-                    <button class="btn" onclick="restartScoreboard()" style="background: #ef4444; margin-top: 10px;">🔄 Restart Scoreboard</button>
                 </div>
             </div>
         </div>
@@ -889,6 +937,12 @@
 
                 document.getElementById('gpio-slowdown-slider').value = settings.gpio_slowdown || 4;
                 updateGPIODisplay(settings.gpio_slowdown || 4);
+
+                // Set new dropdowns
+                document.getElementById('scan-mode-select').value = String(settings.scan_mode ?? 1);
+                document.getElementById('limit-refresh-select').value = String(settings.limit_refresh_rate_hz ?? 0);
+                document.getElementById('rgb-sequence-select').value = settings.rgb_sequence || 'RGB';
+                document.getElementById('pwm-dither-select').value = String(settings.pwm_dither_bits ?? 0);
             } catch (error) {
                 console.error('Error loading display settings:', error);
             }
@@ -1014,6 +1068,10 @@
             const pwmLSB = parseInt(document.getElementById('pwm-lsb-slider').value);
             const pwmBits = parseInt(document.getElementById('pwm-bits-slider').value);
             const gpioSlowdown = parseInt(document.getElementById('gpio-slowdown-slider').value);
+            const scanMode = parseInt(document.getElementById('scan-mode-select').value);
+            const limitRefresh = parseInt(document.getElementById('limit-refresh-select').value);
+            const rgbSequence = document.getElementById('rgb-sequence-select').value;
+            const pwmDither = parseInt(document.getElementById('pwm-dither-select').value);
 
             try {
                 const response = await fetch('/api/display/settings', {
@@ -1022,11 +1080,15 @@
                     body: JSON.stringify({
                         pwm_lsb_nanoseconds: pwmLSB,
                         pwm_bits: pwmBits,
-                        gpio_slowdown: gpioSlowdown
+                        gpio_slowdown: gpioSlowdown,
+                        scan_mode: scanMode,
+                        limit_refresh_rate_hz: limitRefresh,
+                        rgb_sequence: rgbSequence,
+                        pwm_dither_bits: pwmDither
                     })
                 });
                 const data = await response.json();
-                showDisplayAlert('Settings saved! Click "Restart Scoreboard" to apply.', 'success');
+                showDisplayAlert('✅ Settings saved — click Restart Now to apply.', 'success');
             } catch (error) {
                 showDisplayAlert('Error saving settings', 'error');
             }
