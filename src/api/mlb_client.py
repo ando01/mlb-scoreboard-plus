@@ -19,6 +19,37 @@ logger = logging.getLogger(__name__)
 
 _HTTP_TIMEOUT = 15  # seconds
 
+# Maps MLB API result.event strings (lower-cased) to display abbreviations
+_AT_BAT_ABBREVS: dict = {
+    "single": "1B",
+    "double": "2B",
+    "triple": "3B",
+    "home run": "HR",
+    "walk": "BB",
+    "intent walk": "IBB",
+    "hit by pitch": "HBP",
+    "strikeout": "K",
+    "strikeout - double play": "KDP",
+    "grounded into double play": "GDP",
+    "double play": "DP",
+    "triple play": "TP",
+    "sac fly": "SF",
+    "sac fly double play": "SFDP",
+    "sac bunt": "SH",
+    "fielders choice": "FC",
+    "fielders choice out": "FC",
+    "field error": "E",
+    "error": "E",
+    "groundout": "GO",
+    "flyout": "FO",
+    "pop out": "PO",
+    "lineout": "LO",
+    "forceout": "FO",
+    "bunt groundout": "GO",
+    "bunt pop out": "PO",
+    "runner out": "OUT",
+}
+
 
 def _get_json(url: str, params: Optional[dict] = None) -> dict:
     """Synchronous JSON fetch with timeout."""
@@ -336,8 +367,9 @@ class MLBAPIClient:
                 if np is not None:
                     pitch_count = int(np)
 
-        # Last play
+        # Last play + at-bat result abbreviation
         last_play = None
+        last_at_bat_result: Optional[str] = None
         plays = live_data.get("plays", {}).get("allPlays", [])
         if plays:
             last = plays[-1]
@@ -348,6 +380,15 @@ class MLBAPIClient:
                 is_scoring_play=result.get("isScoringPlay", False),
                 rbi=result.get("rbi", 0),
             )
+            # Find the most recent completed at-bat and map to abbreviation
+            for play in reversed(plays):
+                if play.get("about", {}).get("isComplete", False):
+                    event_str = play.get("result", {}).get("event", "")
+                    if event_str:
+                        last_at_bat_result = _AT_BAT_ABBREVS.get(
+                            event_str.lower(), event_str[:4].upper()
+                        )
+                    break
 
         # ----------------------------------------------------------------
         # Next batters — populated when outs == 3 (end of half-inning)
@@ -423,6 +464,7 @@ class MLBAPIClient:
             pitch_count=pitch_count,
             show_pitch_result=show_pitch_result,
             next_batters=next_batters,
+            last_at_bat_result=last_at_bat_result,
         )
 
     # ------------------------------------------------------------------

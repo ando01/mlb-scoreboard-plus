@@ -129,6 +129,7 @@ class LiveGameData(BaseModel):
     pitch_count: Optional[int] = None  # Current pitch count
     show_pitch_result: bool = False  # Toggle between showing pitch count vs pitch result
     next_batters: List[str] = []  # Next 3 batters for the upcoming half-inning
+    last_at_bat_result: Optional[str] = None  # Abbreviation of the last completed at-bat (e.g. "1B", "K", "BB")
 
 
 class StandingsEntry(BaseModel):
