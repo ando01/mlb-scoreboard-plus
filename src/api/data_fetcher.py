@@ -30,6 +30,7 @@ class DataFetcher:
 
         self._lock = threading.Lock()
         self._current_games: List[LiveGameData] = []
+        self._all_games: List[LiveGameData] = []  # full schedule before team filtering
         self._standings: List[StandingsEntry] = []
 
         self.refresh_interval: int = 5  # seconds between data fetches
@@ -128,6 +129,7 @@ class DataFetcher:
                 games = self.simulator.get_games()
                 with self._lock:
                     self._current_games = games
+                    self._all_games = games
                 logger.info(f"Simulated {len(games)} games")
                 return
 
@@ -175,6 +177,9 @@ class DataFetcher:
             else:
                 logger.info("No live games — using schedule data only")
 
+            # Save full schedule (with active game upgraded) for web UI display
+            all_games_full = list(all_games)
+
             # Filter to preferred teams when display_all is off — but ONLY
             # when a preferred team is actually live right now.  If no
             # preferred game is in progress, show the full schedule so the
@@ -195,6 +200,7 @@ class DataFetcher:
 
             with self._lock:
                 self._current_games = all_games
+                self._all_games = all_games_full
 
         except Exception as e:
             logger.error(f"Error fetching games: {e}", exc_info=True)
@@ -225,6 +231,11 @@ class DataFetcher:
     def get_games(self) -> List[LiveGameData]:
         with self._lock:
             return list(self._current_games)
+
+    def get_all_games(self) -> List[LiveGameData]:
+        """Return the full today's schedule (before team filtering). Used by the web UI."""
+        with self._lock:
+            return list(self._all_games) if self._all_games else list(self._current_games)
 
     def get_standings(self) -> List[StandingsEntry]:
         with self._lock:

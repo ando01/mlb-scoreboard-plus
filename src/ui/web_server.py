@@ -70,9 +70,9 @@ async def update_config(config_data: dict):
 
 @app.get("/api/games")
 async def get_games():
-    """Get current games."""
+    """Get all today's games (full schedule, before team filtering)."""
     if data_fetcher_instance:
-        games = data_fetcher_instance.get_games()
+        games = data_fetcher_instance.get_all_games()
         return [game.model_dump() for game in games]
     return []
 
@@ -438,7 +438,7 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             # Send status updates
             if data_fetcher_instance:
-                games = data_fetcher_instance.get_games()
+                games = data_fetcher_instance.get_all_games()
                 await websocket.send_json({
                     "type": "games",
                     "data": [game.model_dump() for game in games]
