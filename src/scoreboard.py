@@ -98,11 +98,9 @@ class Scoreboard:
 
     async def _render_frame(self):
         """Render a single frame."""
-        # Keep display cleared while matrix is disabled
-        if not self.matrix_enabled:
-            self.canvas.clear()
-            self.canvas.swap()
-            return
+        # Keep canvas hardware output in sync with the matrix_enabled flag.
+        # Rendering always runs so the web preview buffer stays populated.
+        self.canvas.matrix_output_enabled = self.matrix_enabled
 
         if self.current_mode == "news":
             await self._render_news()

@@ -113,6 +113,9 @@ class Canvas:
         self._frame_buffer = [[(0, 0, 0)] * self.width for _ in range(self.height)]
         self._display_buffer = [[(0, 0, 0)] * self.width for _ in range(self.height)]
 
+        # When False, swap() skips pushing to the physical matrix (emulated/web-preview mode)
+        self.matrix_output_enabled = True
+
     def set_pixel(self, x: int, y: int, r: int, g: int, b: int):
         """Set a single pixel."""
         if 0 <= x < self.width and 0 <= y < self.height:
@@ -283,11 +286,12 @@ class Canvas:
 
     def swap(self):
         """Swap buffers and display."""
-        if self._matrix and hasattr(self._matrix, 'SwapOnVSync'):
-            self._canvas = self._matrix.SwapOnVSync(self._canvas)
-        elif hasattr(self._canvas, 'display'):
-            self._canvas.display()
-        # Snapshot completed frame for web preview
+        if self.matrix_output_enabled:
+            if self._matrix and hasattr(self._matrix, 'SwapOnVSync'):
+                self._canvas = self._matrix.SwapOnVSync(self._canvas)
+            elif hasattr(self._canvas, 'display'):
+                self._canvas.display()
+        # Always snapshot completed frame for web preview
         self._display_buffer = [row[:] for row in self._frame_buffer]
 
     def get_frame_png(self, scale: int = 6) -> bytes:
