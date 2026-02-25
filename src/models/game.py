@@ -110,6 +110,15 @@ class Inning(BaseModel):
     half: Literal["top", "bottom"] = "top"
 
 
+class Broadcast(BaseModel):
+    """Broadcast network info for a game."""
+    name: str
+    home_away: str = ""   # "home", "away", or "" for national
+    language: str = "en"
+    is_national: bool = False
+    free_game: bool = False
+
+
 class LiveGameData(BaseModel):
     """Live game data."""
     game_id: int
@@ -132,6 +141,7 @@ class LiveGameData(BaseModel):
     next_batters: List[str] = []  # Next 3 batters for the upcoming half-inning
     next_batter_positions: List[int] = []  # Lineup positions (1-9) for each next batter
     last_at_bat_result: Optional[str] = None  # Abbreviation of the last completed at-bat (e.g. "1B", "K", "BB")
+    broadcasts: List[Broadcast] = []  # TV/radio/streaming broadcast networks
 
 
 class StandingsEntry(BaseModel):

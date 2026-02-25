@@ -449,6 +449,59 @@
             max-width: 100%;
             height: auto;
         }
+
+        /* ── Broadcast badges inside game chips ── */
+        .chip-broadcasts {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 2px;
+            justify-content: center;
+            margin-top: 4px;
+        }
+        .broadcast-badge {
+            font-size: 8px;
+            padding: 1px 4px;
+            border-radius: 3px;
+            background: #0f2d57;
+            color: #7899cc;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+        .broadcast-badge.national { background: #1a3a6e; color: #60a5fa; }
+        .broadcast-badge.free { background: #064e3b; color: #4ade80; }
+
+        /* ── Broadcast info panel (shown below pinned game chip) ── */
+        .broadcast-panel {
+            background: #031529;
+            border-top: 1px solid #0a2a5e;
+            padding: 8px 16px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+        }
+        .broadcast-panel-label {
+            color: #556;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            margin-right: 4px;
+        }
+        .broadcast-panel-badge {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            text-transform: uppercase;
+        }
+        .broadcast-panel-badge.tv { background: #1a3a6e; color: #93c5fd; }
+        .broadcast-panel-badge.tv.national { background: #1e3799; color: #bfdbfe; }
+        .broadcast-panel-badge.free { background: #064e3b; color: #4ade80; }
+        .broadcast-panel-badge.radio { background: #2d1b4e; color: #c4b5fd; }
     </style>
 </head>
 <body>
@@ -479,6 +532,10 @@
             </div>
             <div class="ticker-scroll" id="game-ticker">
                 <div style="color:#556;padding:14px 16px;font-size:13px;">Loading games…</div>
+            </div>
+            <div class="broadcast-panel" id="broadcast-panel" style="display:none;">
+                <span class="broadcast-panel-label">Watch / Listen</span>
+                <span id="broadcast-panel-content"></span>
             </div>
         </div>
 
@@ -795,6 +852,16 @@
                     ? `<div class="chip-score">${game.home_team.score}</div>`
                     : `<div class="chip-score no-score">-</div>`;
 
+                // Broadcast badges — show up to 2 inside the chip
+                let chipBroadcastHtml = '';
+                if (game.broadcasts && game.broadcasts.length > 0) {
+                    const badges = game.broadcasts.slice(0, 2).map(b => {
+                        const cls = b.free_game ? 'broadcast-badge free' : b.is_national ? 'broadcast-badge national' : 'broadcast-badge';
+                        return `<span class="${cls}">${b.name}</span>`;
+                    }).join('');
+                    chipBroadcastHtml = `<div class="chip-broadcasts">${badges}</div>`;
+                }
+
                 return `
                     <div class="game-chip${isPinned ? ' pinned' : ''}${isFav ? ' fav-game' : ''}"
                          onclick="pinGame(${game.game_id})"
@@ -812,8 +879,48 @@
                             </div>
                         </div>
                         ${statusHtml}
+                        ${chipBroadcastHtml}
                     </div>`;
             }).join('');
+
+            // Update broadcast panel for the currently pinned (or first live) game
+            updateBroadcastPanel(sorted);
+        }
+
+        function updateBroadcastPanel(games) {
+            const panel = document.getElementById('broadcast-panel');
+            const content = document.getElementById('broadcast-panel-content');
+            if (!panel || !content) return;
+
+            // Find the game to show broadcasts for: pinned first, then first live, then first upcoming
+            const liveStates = new Set(['Live', 'In Progress', 'Warmup']);
+            let target = null;
+            if (pinnedGameId !== null) {
+                target = games.find(g => g.game_id === pinnedGameId);
+            }
+            if (!target) {
+                target = games.find(g => liveStates.has(g.state));
+            }
+            if (!target) {
+                target = games[0];
+            }
+
+            if (!target || !target.broadcasts || target.broadcasts.length === 0) {
+                panel.style.display = 'none';
+                return;
+            }
+
+            const badges = target.broadcasts.map(b => {
+                let cls = 'broadcast-panel-badge tv';
+                if (b.free_game) cls += ' free';
+                else if (b.is_national) cls += ' national';
+                const label = b.home_away && b.home_away !== 'national' ? ` <span style="color:#556;font-weight:400;font-size:9px;">(${b.home_away})</span>` : '';
+                return `<span class="${cls}">${b.name}${label}</span>`;
+            }).join('');
+
+            const teamLabel = `${target.away_team.abbreviation} @ ${target.away_team.abbreviation !== target.home_team.abbreviation ? target.home_team.abbreviation : ''}`;
+            content.innerHTML = badges;
+            panel.style.display = 'flex';
         }
 
         let pinnedGameId = null;

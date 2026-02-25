@@ -12,7 +12,7 @@ import logging
 
 from ..models.game import (
     LiveGameData, GameState, parse_game_state, Team, Inning, Count,
-    BaseRunner, Play, PlayerStats, StandingsEntry
+    BaseRunner, Play, PlayerStats, StandingsEntry, Broadcast
 )
 
 logger = logging.getLogger(__name__)
@@ -85,6 +85,31 @@ class MLBAPIClient:
     def _set_cache(self, key: str, data: Any):
         self._cache[key] = (data, datetime.now())
 
+    def _parse_broadcasts(self, raw: list) -> List[Broadcast]:
+        """Parse a broadcasts array from the MLB API into Broadcast objects.
+
+        Deduplicates by name and skips non-English entries so the UI stays concise.
+        """
+        seen: set = set()
+        result: List[Broadcast] = []
+        for b in raw:
+            name = b.get("name", "").strip()
+            if not name or name in seen:
+                continue
+            lang = b.get("language", "en")
+            if lang and lang.lower() not in ("en", ""):
+                continue  # skip Spanish/other-language duplicates
+            seen.add(name)
+            home_away = (b.get("homeAway") or b.get("type") or "").lower()
+            result.append(Broadcast(
+                name=name,
+                home_away=home_away,
+                language=lang,
+                is_national=bool(b.get("isNational", False)),
+                free_game=bool(b.get("freeGame", False)),
+            ))
+        return result
+
     # ------------------------------------------------------------------
     # Schedule
     # ------------------------------------------------------------------
@@ -108,7 +133,7 @@ class MLBAPIClient:
                 "sportId": 1,
                 "date": date,
                 "gameType": "E,S,R,F,D,L,W,C",
-                "hydrate": "linescore,team",  # probablePitchers omitted — causes API to return fewer games
+                "hydrate": "linescore,team,broadcasts(all)",  # probablePitchers omitted — causes API to return fewer games
             }
             data = _get_json(url, params)
             games = []
@@ -179,6 +204,7 @@ class MLBAPIClient:
             )
 
             prob = g.get("probablePitchers", {})
+            broadcasts = self._parse_broadcasts(g.get("broadcasts", []))
             return LiveGameData(
                 game_id=game_pk,
                 state=state,
@@ -190,6 +216,7 @@ class MLBAPIClient:
                 away_team=away_team,
                 probable_pitcher_home=prob.get("home", {}).get("fullName"),
                 probable_pitcher_away=prob.get("away", {}).get("fullName"),
+                broadcasts=broadcasts,
             )
         except Exception as e:
             logger.error(f"Error parsing schedule game {g.get('gamePk')}: {e}")
@@ -452,6 +479,9 @@ class MLBAPIClient:
             if prob_pitchers.get("away"):
                 prob_away = prob_pitchers["away"].get("fullName")
 
+        # Broadcasts — available in gameData.broadcasts on the live feed
+        broadcasts = self._parse_broadcasts(game_info.get("broadcasts", []))
+
         return LiveGameData(
             game_id=game_pk,
             state=state,
@@ -473,6 +503,7 @@ class MLBAPIClient:
             next_batters=next_batters,
             next_batter_positions=next_batter_positions,
             last_at_bat_result=last_at_bat_result,
+            broadcasts=broadcasts,
         )
 
     # ------------------------------------------------------------------
