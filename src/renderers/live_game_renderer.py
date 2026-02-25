@@ -1,4 +1,5 @@
 """Live game renderer with animations."""
+import time
 from typing import Optional
 from .base_renderer import BaseRenderer
 from .graphics import Colors, draw_baseball_diamond, draw_outs, draw_count
@@ -102,6 +103,47 @@ class LiveGameRenderer(BaseRenderer):
         if game.probable_pitcher_home:
             pitcher_text = game.probable_pitcher_home.split()[-1][:8]
             self.canvas.draw_text(55, 23, f"P: {pitcher_text}", *Colors.YELLOW)
+
+        # Broadcast networks (TV/streaming) below the game time row
+        if game.broadcasts:
+            self._render_pregame_broadcasts(game.broadcasts)
+
+    def _render_pregame_broadcasts(self, broadcasts):
+        """Render broadcast network names at y=50, scrolling if needed."""
+        _MLBTV = {"mlb.tv", "mlbtv"}
+
+        def sort_key(b):
+            nm = b.name.lower()
+            if nm in _MLBTV:
+                return 3          # MLB.TV last — always available for subscribers
+            if b.is_national:
+                return 0          # National TV (ESPN, TBS, FOX…) first
+            if b.free_game:
+                return 1          # Free streaming (Peacock, Apple TV+…) second
+            return 2              # Local/RSN third
+
+        ordered = sorted(broadcasts, key=sort_key)
+        text = " / ".join(b.name for b in ordered)
+
+        LABEL_X = 2
+        TEXT_X = 20   # x position after the "TV:" label
+        ROW_Y = 50
+
+        self.canvas.draw_text(LABEL_X, ROW_Y, "TV:", *Colors.FINAL_GRAY, font=self.small_font)
+
+        # 5x7 BDF font: each character is ~6px wide including spacing
+        CHAR_W = 6
+        avail_px = 128 - TEXT_X   # 108 px available for the network text
+        text_px = len(text) * CHAR_W
+
+        if text_px <= avail_px:
+            self.canvas.draw_text(TEXT_X, ROW_Y, text, *Colors.CYAN, font=self.small_font)
+        else:
+            # Scroll right-to-left at 25 px/second, looping seamlessly
+            total = avail_px + text_px
+            offset = int((time.time() * 25) % total)
+            actual_x = (TEXT_X + avail_px) - offset
+            self.canvas.draw_text(actual_x, ROW_Y, text, *Colors.CYAN, font=self.small_font)
 
     @staticmethod
     def _format_name(name: str) -> str:
