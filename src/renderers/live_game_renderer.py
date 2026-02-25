@@ -237,9 +237,9 @@ class LiveGameRenderer(BaseRenderer):
         self.canvas.draw_text(114, 23, home_e, *Colors.WHITE)
 
         # ── LEFT COLUMN ────────────────────────────────────────────────────
-        # Row y=34 — Pitcher name
+        # Row y=34 — Pitcher name (cap at 7 chars so it doesn't hit the B: label)
         if game.current_pitcher:
-            pitcher_name = self._format_name(game.current_pitcher.name)
+            pitcher_name = self._format_name(game.current_pitcher.name)[:7]
             self.canvas.draw_text(2, 34, f"P:{pitcher_name}", *Colors.WHITE, font=self.small_font)
 
         # Row y=43 — Pitch count or last pitch type/speed
@@ -278,31 +278,32 @@ class LiveGameRenderer(BaseRenderer):
             self.canvas.draw_text(2, 62, batter_text, *Colors.WHITE, font=self.small_font)
 
         # ── BALL / STRIKE / OUT CIRCLES ────────────────────────────────────
-        # Labels at x=53, circles at x=65/71/77[/83], radius=2
+        # Labels at x=60, circles at x=72/78/84[/90], radius=2
+        # Shifted right from x=53 to give the pitcher name row more space.
         # Filled = active count; FINAL_GRAY outline = not yet reached
 
         # Balls — 4 green circles
-        self.canvas.draw_text(53, 34, "B:", *Colors.WHITE, font=self.small_font)
+        self.canvas.draw_text(60, 34, "B:", *Colors.WHITE, font=self.small_font)
         for i in range(4):
-            cx = 65 + i * 6
+            cx = 72 + i * 6
             if i < game.count.balls:
                 self.canvas.draw_circle(cx, 31, 2, *Colors.LIVE_GREEN, filled=True)
             else:
                 self.canvas.draw_circle(cx, 31, 2, *Colors.FINAL_GRAY, filled=False)
 
         # Strikes — 3 red circles
-        self.canvas.draw_text(53, 43, "S:", *Colors.WHITE, font=self.small_font)
+        self.canvas.draw_text(60, 43, "S:", *Colors.WHITE, font=self.small_font)
         for i in range(3):
-            cx = 65 + i * 6
+            cx = 72 + i * 6
             if i < game.count.strikes:
                 self.canvas.draw_circle(cx, 40, 2, *Colors.RED, filled=True)
             else:
                 self.canvas.draw_circle(cx, 40, 2, *Colors.FINAL_GRAY, filled=False)
 
         # Outs — 3 red circles
-        self.canvas.draw_text(53, 52, "O:", *Colors.WHITE, font=self.small_font)
+        self.canvas.draw_text(60, 52, "O:", *Colors.WHITE, font=self.small_font)
         for i in range(3):
-            cx = 65 + i * 6
+            cx = 72 + i * 6
             if i < game.count.outs:
                 self.canvas.draw_circle(cx, 49, 2, *Colors.RED, filled=True)
             else:
