@@ -368,6 +368,62 @@
         .mode-btn.active .mode-dot { animation: pulse 2s infinite; }
         .preview-wrap.hidden { display: none; }
 
+        /* ── Status chips (inside output mode bar) ── */
+        .status-chips {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-left: auto;
+            flex-shrink: 0;
+        }
+        .status-chip {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            color: #555;
+            white-space: nowrap;
+        }
+        .status-chip strong { color: #333; }
+        .status-chip-sep {
+            width: 1px;
+            height: 16px;
+            background: #e5e7eb;
+        }
+
+        /* ── Settings tab panel ── */
+        .settings-panel {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        .settings-tab-bar {
+            display: flex;
+            border-bottom: 2px solid #e5e7eb;
+            background: #f9fafb;
+            padding: 0 8px;
+        }
+        .settings-tab-btn {
+            padding: 13px 20px;
+            border: none;
+            background: transparent;
+            color: #6b7280;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: color 0.15s, border-color 0.15s;
+        }
+        .settings-tab-btn:hover { color: #333; }
+        .settings-tab-btn.active { color: #667eea; border-bottom-color: #667eea; }
+        .settings-tab-content {
+            padding: 20px;
+        }
+        .settings-tab-content .grid { margin-bottom: 0; }
+
         /* ── Live Preview ── */
         .preview-wrap {
             background: #1a1a1a;
@@ -521,7 +577,7 @@
             <p class="subtitle">Control Panel - Configure and monitor your LED scoreboard</p>
         </header>
 
-        <!-- Output Mode Toggle -->
+        <!-- Output Mode Toggle + Status -->
         <div class="output-mode-bar">
             <span class="output-mode-label">Output Mode</span>
             <div class="output-mode-toggle">
@@ -531,6 +587,16 @@
                 <button class="mode-btn hardware" id="mode-btn-hardware" onclick="setOutputMode(true)">
                     <span class="mode-dot"></span> Hardware (LED Matrix)
                 </button>
+            </div>
+            <div class="status-chips">
+                <div class="status-chip">
+                    <div class="status-indicator"></div>
+                    <span id="status-text">Loading…</span>
+                </div>
+                <div class="status-chip-sep"></div>
+                <div class="status-chip">Mode: <strong id="current-mode">—</strong></div>
+                <div class="status-chip-sep"></div>
+                <div class="status-chip">Games: <strong id="games-count">—</strong></div>
             </div>
         </div>
 
@@ -565,19 +631,13 @@
             </div>
         </div>
 
-        <div class="grid">
-            <!-- Status Card -->
-            <div class="card">
-                <h2>Status</h2>
-                <div class="status">
-                    <div class="status-indicator"></div>
-                    <span id="status-text">Loading...</span>
-                </div>
-                <div style="color: #666; font-size: 14px; margin-top: 10px;">
-                    <div>Current Mode: <strong id="current-mode">-</strong></div>
-                    <div>Active Games: <strong id="games-count">-</strong></div>
-                </div>
+        <!-- Settings Tab Panel -->
+        <div class="settings-panel">
+            <div class="settings-tab-bar">
+                <button class="settings-tab-btn active">Settings</button>
             </div>
+            <div class="settings-tab-content">
+                <div class="grid">
 
             <!-- Season Mode Card -->
             <div class="card">
@@ -744,7 +804,9 @@
                     <button class="btn" onclick="restartScoreboard()" style="background: #ef4444; width: 100%;">🔄 Restart Scoreboard</button>
                 </div>
             </div>
-        </div>
+                </div><!-- /.grid -->
+            </div><!-- /.settings-tab-content -->
+        </div><!-- /.settings-panel -->
 
     </div>
 
