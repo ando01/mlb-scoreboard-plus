@@ -115,6 +115,7 @@ class Canvas:
 
         # When False, swap() skips pushing to the physical matrix (emulated/web-preview mode)
         self.matrix_output_enabled = True
+        self._prev_matrix_output_enabled = True  # track transitions to blank hardware on disable
 
     def set_pixel(self, x: int, y: int, r: int, g: int, b: int):
         """Set a single pixel."""
@@ -291,6 +292,15 @@ class Canvas:
                 self._canvas = self._matrix.SwapOnVSync(self._canvas)
             elif hasattr(self._canvas, 'display'):
                 self._canvas.display()
+        elif self._prev_matrix_output_enabled:
+            # First swap after disabling matrix output: push one blank frame so
+            # the hardware LEDs actually go dark instead of freezing on the last frame.
+            self._canvas.Clear()
+            if self._matrix and hasattr(self._matrix, 'SwapOnVSync'):
+                self._canvas = self._matrix.SwapOnVSync(self._canvas)
+            elif hasattr(self._canvas, 'display'):
+                self._canvas.display()
+        self._prev_matrix_output_enabled = self.matrix_output_enabled
         # Always snapshot completed frame for web preview
         self._display_buffer = [row[:] for row in self._frame_buffer]
 
