@@ -85,11 +85,37 @@ class MLBAPIClient:
     def _set_cache(self, key: str, data: Any):
         self._cache[key] = (data, datetime.now())
 
+    # Radio broadcast types returned by the MLB API
+    _RADIO_TYPES: frozenset = frozenset({"fm", "am", "sat", "dab", "radio"})
+
+    # Known radio station name → stream/station-page URL (case-insensitive key lookup)
+    _RADIO_STATION_URLS: dict = {
+        "espn radio":          "https://www.espn.com/espnradio/",
+        "mlb network radio":   "https://tunein.com/search/?query=mlb+network+radio",
+        "wfan":                "https://tunein.com/search/?query=WFAN+660",
+        "weei":                "https://tunein.com/search/?query=WEEI+sports+radio",
+        "knbr":                "https://tunein.com/search/?query=KNBR+680",
+        "kmox":                "https://tunein.com/search/?query=KMOX+1120",
+        "670 the score":       "https://tunein.com/search/?query=670+The+Score",
+        "680 the fan":         "https://tunein.com/search/?query=680+The+Fan+Atlanta",
+        "am 570":              "https://tunein.com/search/?query=AM+570+LA+Sports",
+        "710 espn seattle":    "https://tunein.com/search/?query=710+ESPN+Seattle",
+        "105.3 the fan":       "https://tunein.com/search/?query=105.3+The+Fan",
+        "wbal":                "https://tunein.com/search/?query=WBAL+1090",
+        "wtam":                "https://tunein.com/search/?query=WTAM+1100",
+        "ktrh":                "https://tunein.com/search/?query=KTRH+740",
+        "klaa":                "https://tunein.com/search/?query=KLAA+830",
+        "wip":                 "https://tunein.com/search/?query=WIP+Sports+Radio",
+        "kcsp":                "https://tunein.com/search/?query=KCSP+610",
+        "wcco":                "https://tunein.com/search/?query=WCCO+830",
+    }
+
     def _parse_broadcasts(self, raw: list) -> List[Broadcast]:
         """Parse a broadcasts array from the MLB API into Broadcast objects.
 
         Deduplicates by name and skips non-English entries so the UI stays concise.
         """
+        from urllib.parse import quote_plus
         seen: set = set()
         result: List[Broadcast] = []
         for b in raw:
@@ -100,13 +126,25 @@ class MLBAPIClient:
             if lang and lang.lower() not in ("en", ""):
                 continue  # skip Spanish/other-language duplicates
             seen.add(name)
-            home_away = (b.get("homeAway") or b.get("type") or "").lower()
+            broadcast_type = (b.get("type") or "").strip()
+            home_away = (b.get("homeAway") or "").lower()
+
+            # Build a stream URL for radio broadcasts
+            stream_url: str | None = None
+            if broadcast_type.lower() in self._RADIO_TYPES:
+                stream_url = self._RADIO_STATION_URLS.get(name.lower())
+                if stream_url is None:
+                    # Fallback: TuneIn search always works for any station name
+                    stream_url = f"https://tunein.com/search/?query={quote_plus(name)}"
+
             result.append(Broadcast(
                 name=name,
                 home_away=home_away,
                 language=lang,
                 is_national=bool(b.get("isNational", False)),
                 free_game=bool(b.get("freeGame", False)),
+                type=broadcast_type,
+                stream_url=stream_url,
             ))
         return result
 

@@ -117,6 +117,8 @@ class Broadcast(BaseModel):
     language: str = "en"
     is_national: bool = False
     free_game: bool = False
+    type: str = ""        # "TV", "FM", "AM", "SAT", "Cable", etc.
+    stream_url: Optional[str] = None  # Link to live stream/station page for radio
 
 
 class LiveGameData(BaseModel):

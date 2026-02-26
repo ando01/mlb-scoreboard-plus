@@ -421,8 +421,25 @@
         .settings-tab-btn.active { color: #667eea; border-bottom-color: #667eea; }
         .settings-tab-content {
             padding: 20px;
+            overflow: hidden;
+            max-height: 4000px;
+            transition: max-height 0.35s ease-out, padding 0.35s ease-out;
+        }
+        .settings-tab-content.collapsed {
+            max-height: 0;
+            padding-top: 0;
+            padding-bottom: 0;
         }
         .settings-tab-content .grid { margin-bottom: 0; }
+        .settings-collapse-icon {
+            margin-left: auto;
+            padding: 0 4px;
+            font-size: 13px;
+            color: #9ca3af;
+            transition: transform 0.3s;
+            line-height: 1;
+        }
+        .settings-collapse-icon.collapsed { transform: rotate(-90deg); }
 
         /* ── Live Preview ── */
         .preview-wrap {
@@ -633,10 +650,11 @@
 
         <!-- Settings Tab Panel -->
         <div class="settings-panel">
-            <div class="settings-tab-bar">
-                <button class="settings-tab-btn active">Settings</button>
+            <div class="settings-tab-bar" onclick="toggleSettingsPanel()" style="cursor:pointer;user-select:none;">
+                <button class="settings-tab-btn active" style="pointer-events:none;">Settings</button>
+                <span class="settings-collapse-icon collapsed" id="settings-collapse-icon">▼</span>
             </div>
-            <div class="settings-tab-content">
+            <div class="settings-tab-content collapsed" id="settings-tab-content">
                 <div class="grid">
 
             <!-- Season Mode Card -->
@@ -924,12 +942,17 @@
                     ? `<div class="chip-score">${game.home_team.score}</div>`
                     : `<div class="chip-score no-score">-</div>`;
 
-                // Broadcast badges — show up to 2 inside the chip
+                // Broadcast badges — show up to 2 inside the chip; radio gets a 📻 prefix
                 let chipBroadcastHtml = '';
                 if (game.broadcasts && game.broadcasts.length > 0) {
                     const badges = game.broadcasts.slice(0, 2).map(b => {
-                        const cls = b.free_game ? 'broadcast-badge free' : b.is_national ? 'broadcast-badge national' : 'broadcast-badge';
-                        return `<span class="${cls}">${b.name}</span>`;
+                        const isRadio = b.stream_url != null;
+                        const cls = isRadio ? 'broadcast-badge' : b.free_game ? 'broadcast-badge free' : b.is_national ? 'broadcast-badge national' : 'broadcast-badge';
+                        const label = (isRadio ? '📻 ' : '') + b.name;
+                        if (isRadio) {
+                            return `<a class="${cls}" href="${b.stream_url}" target="_blank" rel="noopener" style="text-decoration:none;" onclick="event.stopPropagation()" title="Listen live">${label}</a>`;
+                        }
+                        return `<span class="${cls}">${label}</span>`;
                     }).join('');
                     chipBroadcastHtml = `<div class="chip-broadcasts">${badges}</div>`;
                 }
@@ -988,10 +1011,15 @@
             }
 
             const badges = target.broadcasts.map(b => {
-                let cls = 'broadcast-panel-badge tv';
-                if (b.free_game) cls += ' free';
-                else if (b.is_national) cls += ' national';
+                const isRadio = b.stream_url != null;
+                let cls = isRadio ? 'broadcast-panel-badge radio' : 'broadcast-panel-badge tv';
+                if (!isRadio && b.free_game) cls += ' free';
+                else if (!isRadio && b.is_national) cls += ' national';
                 const label = b.home_away && b.home_away !== 'national' ? ` <span style="color:#556;font-weight:400;font-size:9px;">(${b.home_away})</span>` : '';
+                const streamIcon = isRadio ? ' <span style="font-size:9px;opacity:0.7;">↗</span>' : '';
+                if (isRadio) {
+                    return `<a class="${cls}" href="${b.stream_url}" target="_blank" rel="noopener" style="text-decoration:none;cursor:pointer;" title="Listen on TuneIn">📻 ${b.name}${label}${streamIcon}</a>`;
+                }
                 return `<span class="${cls}">${b.name}${label}</span>`;
             }).join('');
 
@@ -1309,6 +1337,14 @@
                 // Expected - the server is restarting
                 alert('Scoreboard is restarting... Please wait 10-15 seconds and refresh this page.');
             }
+        }
+
+        // Toggle settings panel open/closed
+        function toggleSettingsPanel() {
+            const content = document.getElementById('settings-tab-content');
+            const icon = document.getElementById('settings-collapse-icon');
+            const isCollapsed = content.classList.toggle('collapsed');
+            icon.classList.toggle('collapsed', isCollapsed);
         }
 
         // Toggle collapsible section
