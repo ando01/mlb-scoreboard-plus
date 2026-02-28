@@ -852,11 +852,12 @@
                     pinnedGameId = data.pinned_game_id;
                 }
 
-                // Update refresh interval slider
+                // Update refresh interval slider and countdown
                 if (data.refresh_interval !== undefined) {
                     const slider = document.getElementById('refresh-interval-slider');
                     slider.value = data.refresh_interval;
                     document.getElementById('refresh-interval-value').textContent = data.refresh_interval + 's';
+                    refreshInterval = data.refresh_interval;
                 }
 
                 // Update simulation toggle button state
@@ -1123,6 +1124,9 @@
                     body: JSON.stringify({interval})
                 });
                 const data = await response.json();
+                refreshInterval = interval;
+                refreshCountdown = interval;
+                updateCountdownDisplay();
                 const alert = document.getElementById('refresh-alert');
                 alert.textContent = `Refresh rate set to ${interval}s`;
                 alert.className = 'alert alert-success';
@@ -1555,8 +1559,9 @@
         fetchStatus();
         fetchGames();
 
-        // Countdown refresh every 10 seconds
-        let refreshCountdown = 10;
+        // Countdown refresh driven by configured refresh interval
+        let refreshInterval = 10;
+        let refreshCountdown = refreshInterval;
         function updateCountdownDisplay() {
             const el = document.getElementById('refresh-countdown');
             if (el) el.textContent = refreshCountdown + 's';
@@ -1564,7 +1569,7 @@
         setInterval(() => {
             refreshCountdown--;
             if (refreshCountdown <= 0) {
-                refreshCountdown = 10;
+                refreshCountdown = refreshInterval;
                 fetchStatus();
                 fetchGames();
             }
