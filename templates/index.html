@@ -614,6 +614,8 @@
                 <div class="status-chip">Mode: <strong id="current-mode">—</strong></div>
                 <div class="status-chip-sep"></div>
                 <div class="status-chip">Games: <strong id="games-count">—</strong></div>
+                <div class="status-chip-sep"></div>
+                <div class="status-chip">Refresh: <strong id="refresh-countdown">10s</strong></div>
             </div>
         </div>
 
@@ -1553,11 +1555,21 @@
         fetchStatus();
         fetchGames();
 
-        // Refresh every 10 seconds
+        // Countdown refresh every 10 seconds
+        let refreshCountdown = 10;
+        function updateCountdownDisplay() {
+            const el = document.getElementById('refresh-countdown');
+            if (el) el.textContent = refreshCountdown + 's';
+        }
         setInterval(() => {
-            fetchStatus();
-            fetchGames();
-        }, 10000);
+            refreshCountdown--;
+            if (refreshCountdown <= 0) {
+                refreshCountdown = 10;
+                fetchStatus();
+                fetchGames();
+            }
+            updateCountdownDisplay();
+        }, 1000);
     </script>
 </body>
 </html>
