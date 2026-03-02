@@ -1,11 +1,12 @@
 """Live game renderer with animations."""
+import math
 import time
 from typing import Optional
 from .base_renderer import BaseRenderer
 from .graphics import Colors, draw_baseball_diamond, draw_outs, draw_count
 from .animations import (
-    AnimationManager, ScoreChangeAnimation, RunnerAnimation,
-    PulseAnimation, SlideAnimation
+    Animation, AnimationManager, ScoreChangeAnimation, RunnerAnimation,
+    PulseAnimation, SlideAnimation, HomeRunAnimation, StrikeoutAnimation,
 )
 from ..models.game import LiveGameData, GameState, parse_game_state
 
@@ -18,6 +19,7 @@ class LiveGameRenderer(BaseRenderer):
         self.animation_manager = AnimationManager()
         self.last_game_state: Optional[LiveGameData] = None
         self.score_animations = {}
+        self.event_animation: Optional[Animation] = None
         self.live_pulse = PulseAnimation(duration=2.0)
         self.live_pulse.start()
 
@@ -77,6 +79,39 @@ class LiveGameRenderer(BaseRenderer):
             )
             self.score_animations['home'] = anim
             self.animation_manager.add(anim)
+
+        # Detect at-bat result transitions (home run, grand slam, strikeout)
+        prev_result = last.last_at_bat_result
+        curr_result = game.last_at_bat_result
+        if curr_result and curr_result != prev_result:
+            # "top" = away team batting, "bottom" = home team batting
+            batting_half = game.inning.half
+
+            if curr_result == "HR" and self.config.animations.celebrate_home_runs:
+                # Grand slam: all three bases were occupied before the play
+                is_grand_slam = bool(
+                    last.runners.first and last.runners.second and last.runners.third
+                )
+                if batting_half == "top":
+                    team_color = Colors.get_team_color(game.away_team.abbreviation)
+                else:
+                    team_color = Colors.get_team_color(game.home_team.abbreviation)
+                batter_name = game.current_batter.name if game.current_batter else ""
+                hr_count = game.current_batter.hr if game.current_batter else None
+                event_anim = HomeRunAnimation(team_color, batter_name, is_grand_slam, hr_count)
+                self.event_animation = event_anim
+                self.animation_manager.add(event_anim)
+
+            elif curr_result in {"K", "KDP"} and self.config.animations.celebrate_strikeouts:
+                # Pitching team is the opposite of the batting team
+                if batting_half == "top":
+                    pitching_color = Colors.get_team_color(game.home_team.abbreviation)
+                else:
+                    pitching_color = Colors.get_team_color(game.away_team.abbreviation)
+                pitcher_name = game.current_pitcher.name if game.current_pitcher else ""
+                event_anim = StrikeoutAnimation(pitcher_name, pitching_color)
+                self.event_animation = event_anim
+                self.animation_manager.add(event_anim)
 
     def _render_pregame(self, game: LiveGameData):
         """Render pre-game information."""
@@ -198,11 +233,100 @@ class LiveGameRenderer(BaseRenderer):
             batter_text = f"{pos}. {self._format_name(name)}"
             self.canvas.draw_text(2, 44 + i * 9, batter_text, *Colors.WHITE, font=self.small_font)
 
+    def _render_homerun_overlay(self, anim: HomeRunAnimation):
+        """Full-screen home run / grand slam celebration overlay."""
+        progress = anim.get_progress()
+        intensity = anim.get_intensity()
+
+        if not anim.get_flash_state():
+            return  # Black frame during flash-off phase
+
+        # Background: brightened team color
+        tc = anim.team_color
+        bg = tuple(max(25, int(c * 0.5 * intensity)) if c > 0 else int(25 * intensity)
+                   for c in tc)
+        self.canvas.draw_rect(0, 0, 128, 64, *bg, filled=True)
+
+        # Main celebration text
+        if anim.is_grand_slam:
+            main_text = "GRAND SLAM!"
+            text_color = (int(255 * intensity), int(215 * intensity), 0)  # Gold
+        else:
+            main_text = "HOME RUN!"
+            text_color = (int(255 * intensity), int(255 * intensity), int(255 * intensity))
+
+        # Center text — main font is roughly 8px per character
+        CHAR_W = 8
+        text_x = max(2, (128 - len(main_text) * CHAR_W) // 2)
+        self.canvas.draw_text(text_x, 22, main_text, *text_color)
+
+        # Batter name (small font, ~6px per char)
+        if anim.batter_name:
+            batter_str = self._format_name(anim.batter_name)
+            if anim.hr_count is not None:
+                batter_str += f" #{anim.hr_count}"
+            b_color = (int(255 * intensity), int(220 * intensity), 0)
+            b_x = max(2, (128 - len(batter_str) * 6) // 2)
+            self.canvas.draw_text(b_x, 36, batter_str, *b_color, font=self.small_font)
+
+        # Expanding sparkle ring
+        if progress > 0.25:
+            cx, cy = 64, 52
+            ring_progress = min(1.0, (progress - 0.25) / 0.6)
+            max_r = 28
+            spark_color = (int(255 * intensity), int(215 * intensity), 0)
+            num_pts = 12
+            for i in range(num_pts):
+                angle = (i / num_pts) * 2 * math.pi
+                r = max_r * ring_progress
+                px = int(cx + math.cos(angle) * r)
+                py = int(cy + math.sin(angle) * r)
+                if 0 <= px < 128 and 0 <= py < 64:
+                    self.canvas.set_pixel(px, py, *spark_color)
+                    for ddx, ddy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                        nx, ny = px + ddx, py + ddy
+                        if 0 <= nx < 128 and 0 <= ny < 64:
+                            self.canvas.set_pixel(nx, ny, *spark_color)
+
+    def _render_strikeout_overlay(self, anim: StrikeoutAnimation):
+        """Full-screen strikeout celebration overlay."""
+        intensity = anim.get_intensity()
+
+        if not anim.get_flash_state():
+            return  # Black frame during flash-off phase
+
+        # Dark red background
+        self.canvas.draw_rect(0, 0, 128, 64,
+                              int(60 * intensity), 0, 0, filled=True)
+
+        # Large "K" centered
+        k_color = (int(255 * intensity), int(255 * intensity), int(255 * intensity))
+        self.canvas.draw_text(59, 22, "K", *k_color)
+
+        # "STRIKEOUT" subtitle
+        so_color = (int(255 * intensity), int(80 * intensity), int(80 * intensity))
+        self.canvas.draw_text(4, 40, "STRIKEOUT", *so_color)
+
+        # Pitcher name
+        if anim.pitcher_name:
+            pitcher_str = self._format_name(anim.pitcher_name)
+            p_color = (int(255 * intensity), int(200 * intensity), 0)
+            p_x = max(2, (128 - len(pitcher_str) * 6) // 2)
+            self.canvas.draw_text(p_x, 52, pitcher_str, *p_color, font=self.small_font)
+
     def _render_live_game(self, game: LiveGameData):
         """Render live game - exact match to original mlb-led-scoreboard."""
         # Show end-of-inning screen when 3 outs and next batters are known
         if game.count.outs >= 3 and game.next_batters:
             self._render_end_of_inning(game)
+            return
+
+        # Event animation overlay takes over the full screen
+        if self.event_animation and not self.event_animation.is_complete():
+            if isinstance(self.event_animation, HomeRunAnimation):
+                self._render_homerun_overlay(self.event_animation)
+            elif isinstance(self.event_animation, StrikeoutAnimation):
+                self._render_strikeout_overlay(self.event_animation)
             return
 
 

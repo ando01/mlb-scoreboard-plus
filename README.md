@@ -19,6 +19,9 @@ A modern, feature-rich MLB LED scoreboard application for Raspberry Pi with LED 
 - Animated runners on base paths
 - Pulsing "LIVE" indicator for active games
 - Score change celebrations with flashing
+- **Home run celebration** — full-screen overlay in batting team's colors with expanding gold sparkle ring and batter name/HR count
+- **Grand slam celebration** — automatically detected when bases are loaded; gold "GRAND SLAM!" display with 4-second animation
+- **Strikeout animation** — dark red full-screen flash with large "K" and pitcher name
 - Baseball diamond visualization
 - Ball-strike-out indicators
 - Color-coded game states
@@ -244,6 +247,7 @@ This rewrite includes significant improvements over the original mlb-led-scorebo
    - Animated score changes
    - Runner movement animations
    - Pulsing indicators
+   - Home run, grand slam, and strikeout celebration overlays
 
 3. **Better Performance**
    - 30 FPS rendering

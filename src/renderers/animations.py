@@ -181,6 +181,57 @@ class RunnerAnimation(Animation):
         return (x, y)
 
 
+class HomeRunAnimation(Animation):
+    """Full-screen celebration for home runs and grand slams."""
+
+    def __init__(self, team_color: Tuple[int, int, int], batter_name: str = "",
+                 is_grand_slam: bool = False, hr_count: Optional[int] = None):
+        duration = 4.0 if is_grand_slam else 3.0
+        super().__init__(duration)
+        self.team_color = team_color
+        self.batter_name = batter_name
+        self.is_grand_slam = is_grand_slam
+        self.hr_count = hr_count
+
+    def get_flash_state(self) -> bool:
+        """Alternating flash during opening phase."""
+        progress = self.get_progress()
+        if progress < 0.3:
+            return int(progress * 20) % 2 == 0
+        return True
+
+    def get_intensity(self) -> float:
+        """Brightness multiplier — fades to black at end."""
+        progress = self.get_progress()
+        if progress < 0.8:
+            return 1.0
+        return 1.0 - (progress - 0.8) / 0.2
+
+
+class StrikeoutAnimation(Animation):
+    """Full-screen animation for strikeouts."""
+
+    def __init__(self, pitcher_name: str = "",
+                 pitching_team_color: Tuple[int, int, int] = (255, 255, 255)):
+        super().__init__(2.0)
+        self.pitcher_name = pitcher_name
+        self.pitching_team_color = pitching_team_color
+
+    def get_flash_state(self) -> bool:
+        """Alternating flash during opening phase."""
+        progress = self.get_progress()
+        if progress < 0.4:
+            return int(progress * 16) % 2 == 0
+        return True
+
+    def get_intensity(self) -> float:
+        """Brightness multiplier — fades to black at end."""
+        progress = self.get_progress()
+        if progress < 0.8:
+            return 1.0
+        return 1.0 - (progress - 0.8) / 0.2
+
+
 class AnimationManager:
     """Manages multiple animations."""
 
