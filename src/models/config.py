@@ -9,6 +9,7 @@ class DisplayConfig(BaseModel):
     rotation_enabled: bool = True
     rotation_interval: int = Field(default=15, ge=5)
     default_mode: str = "live_game"
+    matrix_enabled: bool = True
 
 
 class TeamsConfig(BaseModel):

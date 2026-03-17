@@ -44,7 +44,7 @@ class Scoreboard:
         self.last_rotation = datetime.now()
         self.last_news_fetch = None
         self.running = False
-        self.matrix_enabled = True  # Control LED matrix on/off
+        self.matrix_enabled = self.config.display.matrix_enabled
 
     async def start(self):
         """Start the scoreboard."""

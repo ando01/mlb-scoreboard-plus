@@ -302,7 +302,9 @@ async def toggle_matrix(data: dict):
 
     if scoreboard_instance:
         scoreboard_instance.matrix_enabled = enabled
-        # Render loop will handle clearing/displaying automatically
+        # Persist so the setting survives a process restart
+        scoreboard_instance.config.display.matrix_enabled = enabled
+        save_config(scoreboard_instance.config)
 
         return {
             "status": "success",
