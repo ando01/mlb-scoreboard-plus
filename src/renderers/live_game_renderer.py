@@ -366,26 +366,14 @@ class LiveGameRenderer(BaseRenderer):
             pitcher_name = self._format_name(game.current_pitcher.name)[:7]
             self.canvas.draw_text(2, 34, f"P:{pitcher_name}", *Colors.WHITE, font=self.small_font)
 
-        # Row y=43 — Pitch count or last pitch type/speed
-        if game.current_pitcher:
-            if game.show_pitch_result and (game.last_pitch_type or game.last_pitch_speed):
-                pitch_info = ""
-                if game.last_pitch_type:
-                    pitch_info = game.last_pitch_type[:2].upper()
-                if game.last_pitch_speed:
-                    speed = f"{int(game.last_pitch_speed)}mph"
-                    pitch_info = f"{pitch_info} {speed}" if pitch_info else speed
-                if pitch_info:
-                    if game.current_pitcher.so is not None:
-                        pitch_info += f" K:{game.current_pitcher.so}"
-                    self.canvas.draw_text(2, 43, pitch_info, *Colors.CYAN, font=self.small_font)
-            elif game.pitch_count is not None:
-                pc_text = f"P:{game.pitch_count}"
-                if game.current_pitcher.so is not None:
-                    pc_text += f" K:{game.current_pitcher.so}"
-                self.canvas.draw_text(2, 43, pc_text, *Colors.WHITE, font=self.small_font)
+        # Row y=43 — Pitch count and strikeouts (always shown)
+        if game.current_pitcher and game.pitch_count is not None:
+            pc_text = f"P:{game.pitch_count}"
+            if game.current_pitcher.so is not None:
+                pc_text += f" K:{game.current_pitcher.so}"
+            self.canvas.draw_text(2, 43, pc_text, *Colors.WHITE, font=self.small_font)
 
-        # Row y=52 — At-bat result (shows briefly after play, then clears)
+        # Row y=52 — At-bat result (priority) or last pitch type/speed
         if game.last_at_bat_result:
             _hits_walks = {"1B", "2B", "3B", "HR", "BB", "IBB", "HBP"}
             _errors_special = {"E", "FC", "SF", "SH", "GDP", "DP", "TP"}
@@ -397,6 +385,15 @@ class LiveGameRenderer(BaseRenderer):
             else:
                 result_color = Colors.WHITE
             self.canvas.draw_text(2, 52, result, *result_color, font=self.small_font)
+        elif game.current_pitcher and game.show_pitch_result and (game.last_pitch_type or game.last_pitch_speed):
+            pitch_info = ""
+            if game.last_pitch_type:
+                pitch_info = game.last_pitch_type[:2].upper()
+            if game.last_pitch_speed:
+                speed = f"{int(game.last_pitch_speed)}mph"
+                pitch_info = f"{pitch_info} {speed}" if pitch_info else speed
+            if pitch_info:
+                self.canvas.draw_text(2, 52, pitch_info, *Colors.CYAN, font=self.small_font)
 
         # Row y=62 — Batter name + game hits-AB in parens
         if game.current_batter:
