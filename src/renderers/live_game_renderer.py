@@ -376,9 +376,14 @@ class LiveGameRenderer(BaseRenderer):
                     speed = f"{int(game.last_pitch_speed)}mph"
                     pitch_info = f"{pitch_info} {speed}" if pitch_info else speed
                 if pitch_info:
+                    if game.current_pitcher.so is not None:
+                        pitch_info += f" K:{game.current_pitcher.so}"
                     self.canvas.draw_text(2, 43, pitch_info, *Colors.CYAN, font=self.small_font)
             elif game.pitch_count is not None:
-                self.canvas.draw_text(2, 43, f"P:{game.pitch_count}", *Colors.WHITE, font=self.small_font)
+                pc_text = f"P:{game.pitch_count}"
+                if game.current_pitcher.so is not None:
+                    pc_text += f" K:{game.current_pitcher.so}"
+                self.canvas.draw_text(2, 43, pc_text, *Colors.WHITE, font=self.small_font)
 
         # Row y=52 — At-bat result (shows briefly after play, then clears)
         if game.last_at_bat_result:

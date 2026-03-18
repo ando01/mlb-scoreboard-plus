@@ -401,9 +401,11 @@ class MLBAPIClient:
             pid = p.get("id")
             pstats = bs_players.get(pid, {})
             era = pstats.get("seasonStats", {}).get("pitching", {}).get("era", "0.00")
+            game_so = pstats.get("stats", {}).get("pitching", {}).get("strikeOuts")
             current_pitcher = PlayerStats(
                 name=player_name(p),
                 era=str(era),
+                so=int(game_so) if game_so is not None else None,
             )
 
         # ----------------------------------------------------------------
