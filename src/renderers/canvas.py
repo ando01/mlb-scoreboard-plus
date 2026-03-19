@@ -77,19 +77,23 @@ class Canvas:
 
                 # Start with low brightness to prevent power surge on startup
                 self._target_brightness = options.brightness
-                startup_brightness = int(os.getenv('LED_STARTUP_BRIGHTNESS', 10))
-                ramp_time = float(os.getenv('LED_RAMP_TIME', 2.0))
+                startup_brightness = int(os.getenv('LED_STARTUP_BRIGHTNESS', 1))
+                ramp_time = float(os.getenv('LED_RAMP_TIME', 5.0))
                 options.brightness = startup_brightness
+
+                # Delay before matrix init to let PSU and Pi boot stabilize
+                import time
+                time.sleep(3)
 
                 self._matrix = RGBMatrix(options=options)
                 self._canvas = self._matrix.CreateFrameCanvas()
 
                 # Gradually ramp up brightness to prevent Pi reboot
-                import time
-                brightness_steps = max(1, (self._target_brightness - startup_brightness) // 5)
+                step_size = 2
+                brightness_steps = max(1, (self._target_brightness - startup_brightness) // step_size)
                 step_delay = ramp_time / brightness_steps if brightness_steps > 0 else 0
 
-                for brightness in range(startup_brightness, self._target_brightness + 1, 5):
+                for brightness in range(startup_brightness, self._target_brightness + 1, step_size):
                     self._matrix.brightness = brightness
                     time.sleep(step_delay)
             except ImportError:
