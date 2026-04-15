@@ -276,29 +276,31 @@
             text-transform: uppercase;
         }
         .ticker-scroll {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 3px;
-            padding: 6px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, 128px);
+            gap: 6px;
+            padding: 8px;
         }
         .game-chip {
-            flex: 0 0 auto;
             background: #0a2a5e;
             border: 1px solid #1a4a8a;
             border-radius: 6px;
-            padding: 8px 12px;
+            padding: 8px 10px;
             cursor: pointer;
-            min-width: 108px;
             color: white;
             transition: background 0.15s, border-color 0.15s;
             position: relative;
             text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
         .game-chip:hover { background: #1a4a8a; border-color: #667eea; }
         .game-chip.pinned { background: #0d2b1a; border-color: #4ade80; box-shadow: 0 0 0 1px #4ade80; }
         .game-chip.fav-game { border-left: 3px solid #2563eb; }
-        .chip-matchup { display: flex; align-items: center; justify-content: center; gap: 6px; }
-        .chip-team-block { text-align: center; min-width: 38px; }
+        .chip-matchup { display: flex; align-items: center; justify-content: center; gap: 4px; }
+        .chip-team-block { text-align: center; }
+        .chip-logo { width: 30px; height: 30px; object-fit: contain; display: block; margin: 0 auto 2px; }
         .chip-abbr { font-size: 11px; font-weight: 700; color: #aac; text-transform: uppercase; }
         .chip-score { font-size: 20px; font-weight: 700; color: #fff; line-height: 1.1; }
         .chip-score.no-score { font-size: 12px; color: #556; }
@@ -962,11 +964,13 @@
                         ${isPinned ? '<div class="chip-on-board">ON BOARD</div>' : ''}
                         <div class="chip-matchup">
                             <div class="chip-team-block">
+                                <img class="chip-logo" src="https://www.mlb.com/assets/images/team/logo/primary/light/${game.away_team.id}.svg" onerror="this.style.display='none'" alt="">
                                 <div class="chip-abbr">${game.away_team.abbreviation}</div>
                                 ${awayScore}
                             </div>
                             <div class="chip-divider">@</div>
                             <div class="chip-team-block">
+                                <img class="chip-logo" src="https://www.mlb.com/assets/images/team/logo/primary/light/${game.home_team.id}.svg" onerror="this.style.display='none'" alt="">
                                 <div class="chip-abbr">${game.home_team.abbreviation}</div>
                                 ${homeScore}
                             </div>
