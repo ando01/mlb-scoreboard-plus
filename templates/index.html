@@ -964,13 +964,13 @@
                         ${isPinned ? '<div class="chip-on-board">ON BOARD</div>' : ''}
                         <div class="chip-matchup">
                             <div class="chip-team-block">
-                                <img class="chip-logo" src="https://www.mlb.com/assets/images/team/logo/primary/light/${game.away_team.id}.svg" onerror="this.style.display='none'" alt="">
+                                <img class="chip-logo" src="https://midfield.mlbstatic.com/v1/team/${game.away_team.id}/logo/spot-default-light" onerror="this.style.display='none'" alt="">
                                 <div class="chip-abbr">${game.away_team.abbreviation}</div>
                                 ${awayScore}
                             </div>
                             <div class="chip-divider">@</div>
                             <div class="chip-team-block">
-                                <img class="chip-logo" src="https://www.mlb.com/assets/images/team/logo/primary/light/${game.home_team.id}.svg" onerror="this.style.display='none'" alt="">
+                                <img class="chip-logo" src="https://midfield.mlbstatic.com/v1/team/${game.home_team.id}/logo/spot-default-light" onerror="this.style.display='none'" alt="">
                                 <div class="chip-abbr">${game.home_team.abbreviation}</div>
                                 ${homeScore}
                             </div>
