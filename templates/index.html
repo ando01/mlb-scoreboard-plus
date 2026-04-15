@@ -277,15 +277,10 @@
         }
         .ticker-scroll {
             display: flex;
-            overflow-x: auto;
+            flex-wrap: wrap;
             gap: 3px;
             padding: 6px;
-            scrollbar-width: thin;
-            scrollbar-color: #1a4a8a #041e42;
         }
-        .ticker-scroll::-webkit-scrollbar { height: 4px; }
-        .ticker-scroll::-webkit-scrollbar-track { background: #041e42; }
-        .ticker-scroll::-webkit-scrollbar-thumb { background: #1a4a8a; border-radius: 2px; }
         .game-chip {
             flex: 0 0 auto;
             background: #0a2a5e;
